@@ -1,0 +1,159 @@
+# === FINQUANT-NEXUS v4 Master Config ===
+# All hyperparameters here. No hardcoded values in code.
+
+seed: 42
+device: 'cuda'
+fp16: true
+
+# --- Data ---
+data:
+  stocks: 'nifty50'
+  start_date: '2015-01-01'
+  end_date: '2025-12-31'
+  train_end: '2021-12-31'
+  val_end: '2023-12-31'
+  risk_free_rate: 0.07        # India govt bond ~7%
+  transaction_cost: 0.001     # 0.1% STT + brokerage
+  slippage: 0.0005            # 0.05%
+  min_trading_days: 1000      # Minimum days for a stock to be included
+  max_nan_pct: 0.05           # Max 5% NaN allowed
+  trading_days_per_year: 248
+
+# --- Feature Engineering ---
+features:
+  normalize: 'zscore'
+  rolling_window: 252         # 1 year rolling for normalization
+  clip_range: 5.0             # Clip z-scores to [-5, +5]
+  min_periods: 60             # Minimum periods for rolling stats
+  indicators:
+    - rsi
+    - macd
+    - macd_signal
+    - macd_hist
+    - bb_upper
+    - bb_mid
+    - bb_lower
+    - sma_20
+    - sma_50
+    - ema_12
+    - ema_26
+    - atr
+    - stoch_k
+    - stoch_d
+    - volume_sma
+    - volume_ratio
+    - return_1d
+    - return_5d
+    - return_20d
+    - volatility_20d
+    - volatility_60d
+
+# --- Sentiment ---
+sentiment:
+  model: 'ProsusAI/finbert'
+  fine_tune_epochs: 3
+  fine_tune_lr: 0.00002
+  fine_tune_batch_size: 16
+  max_length: 128
+  decay_factor: 0.95          # Decay for days without news
+  cache_db: 'data/sentiment.db'
+
+# --- GNN ---
+gnn:
+  hidden_dim: 64
+  output_dim: 64
+  num_layers: 2
+  num_heads: 4
+  dropout: 0.1
+  correlation_threshold: 0.6
+  correlation_window: 60      # 60-day rolling correlation
+  neighbor_sample: 15         # NeighborSampler max neighbors per hop
+
+# --- RL ---
+rl:
+  algorithm: 'PPO'            # Primary: PPO. Comparison: SAC
+  lr: 0.0003
+  gamma: 0.99
+  batch_size: 64
+  n_steps: 2048
+  n_epochs: 10
+  clip_range: 0.2
+  total_timesteps: 500000
+  max_position: 0.20          # 20% max per stock
+  stop_loss: -0.05            # -5% per stock
+  max_drawdown: -0.15         # -15% circuit breaker
+  episode_length: 252         # 1 year trading days
+  reward:
+    sharpe_weight: 1.0
+    drawdown_penalty: 0.1
+    turnover_penalty: 0.01
+
+  sac:
+    lr: 0.0003
+    buffer_size: 100000
+    batch_size: 256
+    tau: 0.005
+    ent_coef: 'auto'
+
+# --- GAN ---
+gan:
+  seq_length: 128
+  latent_dim: 64
+  hidden_dim: 128
+  num_layers: 3
+  epochs: 500
+  lr: 0.0005
+  batch_size: 32
+  grad_accumulation: 4        # Effective batch = 32 * 4 = 128
+
+# --- Stress Testing ---
+stress:
+  n_scenarios: 1000
+  var_confidence: [0.95, 0.99]
+  monte_carlo_paths: 10000
+  crash_types:
+    - normal
+    - crash_2008
+    - crash_covid
+    - flash_crash
+
+# --- NAS ---
+nas:
+  search_space_layers: [2, 3, 4, 5, 6]
+  search_space_dims: [32, 64, 128, 256]
+  search_space_heads: [1, 2, 4, 8]
+  darts_epochs: 50
+  retrain_epochs: 100
+  top_k: 3                    # Extract top-3 architectures
+
+# --- Federated Learning ---
+fl:
+  num_clients: 4
+  rounds: 50
+  local_epochs: 5
+  strategy: 'FedProx'         # FedAvg or FedProx
+  fedprox_mu: 0.01
+  dp_epsilon: 8.0
+  dp_delta: 0.00001
+  dp_max_grad_norm: 1.0
+
+# --- Quantum ---
+quantum:
+  num_assets: 8
+  qaoa_layers: 3
+  max_qubits: 12
+  shots: 1024
+  optimizer: 'COBYLA'
+  benchmark_sizes: [4, 6, 8, 10, 12]
+
+# --- API ---
+api:
+  host: '0.0.0.0'
+  port: 8000
+  cors_origins:
+    - 'http://localhost:3000'
+
+# --- Logging ---
+logging:
+  level: 'INFO'
+  log_dir: 'logs'

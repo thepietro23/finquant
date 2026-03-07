@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+
+# Data (large files)
+data/*.csv
+data/**/*.csv
+data/graphs/*.pt
+data/sentiment.db
+
+# Model checkpoints (large files)
+models/*.pt
+models/*.pth
+models/*.ckpt
+models/**/*.pt
+
+# Logs
+logs/*.log
+
+# Experiments
+experiments/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# W&B
+wandb/
+
+# Docker volumes
+pgdata/

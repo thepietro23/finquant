@@ -1,0 +1,69 @@
+# === FINQUANT-NEXUS v4 Dependencies ===
+# Install PyTorch separately first:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# --- Core ML ---
+numpy>=1.24,<2.4
+pandas>=2.0
+scikit-learn>=1.3
+scipy>=1.11
+
+# --- Data ---
+yfinance>=0.2.30
+ta>=0.11           # Technical indicators
+
+# --- GNN ---
+torch-geometric>=2.4
+torch-scatter
+torch-sparse
+
+# --- NLP / Sentiment ---
+transformers>=4.35
+datasets>=2.15
+tokenizers>=0.15
+
+# --- RL ---
+gymnasium>=0.29
+stable-baselines3>=2.2
+
+# --- GAN (uses PyTorch directly) ---
+
+# --- NAS (uses PyTorch directly) ---
+
+# --- Federated Learning ---
+flwr>=1.6          # Flower FL framework
+
+# --- Quantum ---
+qiskit>=1.0
+qiskit-aer>=0.13
+
+# --- API ---
+fastapi>=0.104
+uvicorn[standard]>=0.24
+pydantic>=2.5
+python-dotenv>=1.0
+
+# --- Database ---
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+
+# --- Experiment Tracking ---
+wandb>=0.16
+
+# --- Visualization ---
+matplotlib>=3.8
+seaborn>=0.13
+plotly>=5.18
+
+# --- Config ---
+pyyaml>=6.0
+
+# --- Testing ---
+pytest>=7.4
+pytest-cov>=4.1
+httpx>=0.25         # For FastAPI testing
+
+# --- Utilities ---
+tqdm>=4.66
+requests>=2.31
+feedparser>=6.0     # Google News RSS parsing
