@@ -661,4 +661,262 @@ Feature Tensor (47, ~2200, 21) float32
 
 ---
 
-> **Next: Phase 4 — Graph Construction. Sector edges + supply chain edges + dynamic correlation edges → PyG Data object for T-GAT.**
+---
+
+## PHASE 4: Graph Construction
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/graph/builder.py` | Multi-relational graph builder — 3 edge types, PyG Data objects, graph sequence | T-GAT ko adjacency matrix chahiye. Kaunse stocks connected hain, kaise connected hain — yeh sab graph define karta hai. |
+| `tests/test_graph.py` | 20 tests covering all edge types, full graph, stats, edge cases | Har edge type correct hai? Self-loops toh nahi? Bidirectional hai? Edge cases handle? |
+
+### Graph Kya Hai? — Simple Analogy
+
+```
+Sooch: Social media graph.
+  - Nodes = users (tum, tumhare dost)
+  - Edges = connections (friendship, follows, messages)
+
+Stock market graph:
+  - Nodes = 47 stocks (RELIANCE, TCS, HDFC, ...)
+  - Edges = relationships between stocks
+
+3 types of edges (relationships):
+  1. SECTOR: Same sector = similar business → connected
+     HDFCBANK ↔ ICICIBANK (dono Banking)
+     TCS ↔ INFY (dono IT)
+
+  2. SUPPLY CHAIN: Business dependency → connected
+     TATASTEEL → MARUTI (steel supplier → car maker)
+     RELIANCE → ONGC (energy value chain)
+
+  3. CORRELATION: Price co-movement → connected
+     Agar do stocks ka |correlation| > 0.6 → connected
+     Yeh daily change hota hai (dynamic edge)
+```
+
+### 3 Edge Types — Detail
+
+#### Edge Type 0: Sector Edges (Static)
+
+```
+Same sector ke stocks ek dusre se connected hain.
+
+Banking sector: HDFCBANK, ICICIBANK, SBIN, KOTAKBANK, AXISBANK, INDUSINDBK
+  = C(6,2) = 15 pairs × 2 directions = 30 edges
+
+Kyu? Same sector stocks similar factors se affect hote hain:
+  - RBI rate hike → ALL banking stocks girengi
+  - IT spending badha → ALL IT stocks badhenge
+  GNN yeh "sector effect" capture karta hai edges ke through.
+
+Code:
+  for each (stock_a, stock_b) in same_sector:
+      add edge a → b
+      add edge b → a  (bidirectional)
+```
+
+#### Edge Type 1: Supply Chain Edges (Static)
+
+```
+27 manually defined business relationships:
+
+TATASTEEL → MARUTI    (steel for cars)
+RELIANCE → ONGC       (energy value chain)
+HCLTECH → BHARTIARTL  (IT infra for telecom)
+BAJFINANCE → MARUTI   (auto loan financing)
+...
+
+Kyu? Real world mein steel ka price badha → Maruti ka cost badha → profit gira.
+Yeh "dependency effect" sector edges se capture nahi hota.
+Supply chain edges explicit business relationships encode karte hain.
+
+Code: Same as sector — both directions added.
+```
+
+#### Edge Type 2: Correlation Edges (Dynamic — changes daily!)
+
+```
+Har din compute hota hai:
+  1. Last 60 trading days ka return data lo
+  2. Pairwise correlation matrix compute karo (47×47)
+  3. |correlation| > 0.6 → edge add karo
+
+Example:
+  Day 100: RELIANCE-TCS correlation = 0.75 → EDGE
+  Day 200: RELIANCE-TCS correlation = 0.45 → NO EDGE (dropped below threshold)
+  Day 300: RELIANCE-TCS correlation = 0.82 → EDGE again
+
+Kyu dynamic? Market regimes change hoti hain:
+  - COVID 2020: Panic selling → sab stocks highly correlated (correlation ~0.9)
+  - Normal times: IT aur Pharma uncorrelated (0.2-0.3)
+  - Sector rotation: Money moves from IT to Banking → correlations shift
+
+Static correlation galat hogi — "average" relationship batayegi jo kisi bhi time accurate nahi.
+Rolling 60-day window = current market regime capture.
+
+Threshold 0.6 kyu?
+  - Too low (0.3) = bahut zyada edges = noise, graph dense = slow + noisy
+  - Too high (0.9) = bahut kam edges = information loss
+  - 0.6 = moderate, financial literature standard
+```
+
+### Vectorized Correlation (Fast Version)
+
+```python
+# SLOW version (double loop):
+for i in range(47):
+    for j in range(i+1, 47):
+        if abs(corr[i,j]) > 0.6:
+            add_edge(i, j)
+# 47*46/2 = 1081 iterations per day × 2200 days = 2.3 million iterations = SLOW
+
+# FAST version (vectorized):
+mask = np.triu(np.abs(corr) > threshold, k=1)  # Upper triangle, exclude diagonal
+sources, targets = np.where(mask)               # All matching pairs at once
+# One NumPy call = C-level speed. ~100x faster.
+```
+
+### Edge Deduplication — Tricky Part
+
+```
+Problem: TATASTEEL aur MARUTI dono Metal sector mein hain AUR supply chain mein bhi.
+  → Sector edge: TATASTEEL ↔ MARUTI
+  → Supply edge: TATASTEEL ↔ MARUTI
+  → Duplicate! Same edge 2 baar.
+
+Solution: _deduplicate_edges()
+  Encode: edge_code = source_idx * n + target_idx (unique number per edge)
+  Keep first occurrence only.
+  First = sector edge → sector type retained.
+
+Kyu important? Duplicate edges = GNN double-counting = biased message passing.
+```
+
+### PyG Data Object — Model Input
+
+```python
+Data(
+    x=node_features,     # tensor (47, 21) — features for this day
+    edge_index=edges,    # tensor (2, num_edges) — all connections
+    edge_type=types,     # tensor (num_edges,) — 0=sector, 1=supply, 2=corr
+)
+
+Kyu PyG Data?
+  PyTorch Geometric ka standard format hai.
+  T-GAT, GCN, GraphSAGE — sab isse directly accept karte hain.
+  x = node features, edge_index = sparse adjacency.
+  Reinventing the wheel ki zarurat nahi.
+```
+
+### Graph Sequence — One Graph Per Day
+
+```
+build_graph_sequence() kya karta hai:
+  1. Static edges ek baar compute karo (sector + supply chain) → reuse daily
+  2. Har trading day ke liye:
+     a. Correlation matrix lo (rolling 60-day window)
+     b. Correlation edges compute karo
+     c. Static + correlation edges combine karo
+     d. Node features attach karo (21 technical indicators for that day)
+     e. PyG Data object banao
+  3. Result: list of ~2200 Data objects
+
+Memory efficient: Static edges shared, sirf corr edges daily recompute.
+```
+
+### Graph Stats — Quick Summary
+
+```python
+get_graph_stats(data) → {
+    'num_nodes': 47,
+    'num_edges': 250,          # Total (all 3 types)
+    'density': 0.12,           # edges / possible_edges
+    'sector_edges': 160,       # Type 0
+    'supply_chain_edges': 54,  # Type 1
+    'correlation_edges': 36,   # Type 2
+}
+
+Density = edges / n*(n-1) = 250 / (47*46) = 0.12
+Matlab: 12% possible connections active. Sparse graph = efficient GNN.
+```
+
+### Tests: 20/20 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T4.1 | Sector edge count | 2 × valid_pairs = expected edges |
+| T4.2 | Sector bidirectional | Every (i,j) has (j,i) |
+| T4.3 | Sector no self-loops | No (i,i) edges |
+| T4.4 | Supply chain exists | > 0 edges |
+| T4.5 | Supply bidirectional | Every (i,j) has (j,i) |
+| T4.6 | Supply no self-loops | No (i,i) edges |
+| T4.7 | Correlation threshold | Only |corr| > 0.6 pairs included |
+| T4.8 | Corr no self-loops | Diagonal excluded |
+| T4.9 | Corr bidirectional | Symmetric edges |
+| T4.10 | Static has both types | edge_type contains 0 and 1 |
+| T4.11 | Type length matches | edge_type.len == edge_index.shape[1] |
+| T4.12 | Full graph shape | num_nodes, x.shape correct |
+| T4.13 | All 3 types present | With correlation → types 0, 1, 2 all present |
+| T4.14 | NumPy auto-convert | np.ndarray → torch.Tensor automatically |
+| T4.15 | Stats keys | num_nodes, density, sector_edges in output |
+| T4.16 | Density range | 0 ≤ density ≤ 1 |
+| E4.1 | Zero correlation | Identity matrix → 0 corr edges |
+| E4.2 | Perfect correlation | All 1s → n*(n-1) edges |
+| E4.3 | Single stock | 1 stock → 0 corr edges |
+| E4.4 | Negative correlation | |corr| > threshold works for negative values too |
+
+### File Flow (Updated)
+
+```
+stocks.py (NIFTY 50 list + sectors + supply chain)
+    |
+    v
+download.py (yfinance se download)
+    |
+    v
+data/*.csv (per stock raw CSV files)
+    |
+    v
+quality.py (check + clean)
+    |
+    v
+features.py (21 indicators + z-score)
+    |
+    v
+Feature Tensor (47, ~2200, 21) float32
+    |                                    news_fetcher.py (Google News RSS)
+    |                                         |
+    |                                         v
+    |                                    finbert.py (sentiment scoring)
+    |                                         |
+    |                                         v
+    |                                    Sentiment Matrix (47, ~2200) float32
+    |                                         |
+    +--------------------+--------------------+
+                         |
+                         v
+              Combined Input (47, ~2200, 22)
+                         |
+                         v
+              builder.py (graph construction)          ← NEW
+                |              |              |
+                v              v              v
+          Sector Edges   Supply Chain   Correlation
+          (static)       (static)       (dynamic/daily)
+                |              |              |
+                +------+-------+--------------+
+                       |
+                       v
+              PyG Data Objects (one per day)
+              [x=features, edge_index, edge_type]
+                       |
+                       v
+              Phase 5: T-GAT Model (next)
+```
+
+---
+
+> **Next: Phase 5 — T-GAT (Temporal Graph Attention Network). Graph + features → stock embeddings. Attention mechanism = important neighbors get more weight.**

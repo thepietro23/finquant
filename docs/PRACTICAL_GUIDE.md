@@ -453,6 +453,129 @@ print(f'\nAverage sentiment: {avg:+.3f}')
 
 ---
 
+## Phase 4: Graph Construction — Manual Testing
+
+### 1. Sector Edges
+```python
+python -c "
+from src.graph.builder import build_sector_edges, EDGE_SECTOR
+from src.data.stocks import get_ticker_to_index, get_sector_pairs
+
+ticker_to_idx = get_ticker_to_index()
+edge_index = build_sector_edges(ticker_to_idx)
+
+pairs = get_sector_pairs()
+valid = [(a,b) for a,b in pairs if a in ticker_to_idx and b in ticker_to_idx]
+
+print('=== Sector Edges ===')
+print(f'Sector pairs: {len(valid)}')
+print(f'Directed edges: {edge_index.shape[1]} (should be {len(valid)*2})')
+print(f'Shape: {edge_index.shape}')
+print(f'Sample edges (first 5):')
+for k in range(min(5, edge_index.shape[1])):
+    i, j = edge_index[0,k].item(), edge_index[1,k].item()
+    print(f'  Node {i} → Node {j}')
+"
+```
+
+### 2. Supply Chain Edges
+```python
+python -c "
+from src.graph.builder import build_supply_chain_edges
+from src.data.stocks import get_supply_chain_pairs, get_ticker_to_index
+
+edge_index = build_supply_chain_edges()
+pairs = get_supply_chain_pairs()
+ticker_to_idx = get_ticker_to_index()
+
+print('=== Supply Chain Edges ===')
+print(f'Defined pairs: {len(pairs)}')
+print(f'Directed edges: {edge_index.shape[1]}')
+
+# Show actual stock names
+idx_to_ticker = {v:k for k,v in ticker_to_idx.items()}
+print(f'Sample edges:')
+for k in range(min(6, edge_index.shape[1])):
+    i, j = edge_index[0,k].item(), edge_index[1,k].item()
+    print(f'  {idx_to_ticker.get(i, i)} → {idx_to_ticker.get(j, j)}')
+"
+```
+
+### 3. Correlation Edges (Synthetic Data)
+```python
+python -c "
+import numpy as np
+from src.graph.builder import build_correlation_edges_fast
+
+# Create known correlation matrix
+n = 10
+corr = np.eye(n)
+corr[0,1] = corr[1,0] = 0.85   # High positive
+corr[2,3] = corr[3,2] = 0.40   # Below threshold
+corr[4,5] = corr[5,4] = -0.75  # High negative
+
+edge_index = build_correlation_edges_fast(corr, threshold=0.6)
+print('=== Correlation Edges (Synthetic) ===')
+print(f'Matrix size: {n}x{n}')
+print(f'Edges found: {edge_index.shape[1]}')
+print(f'Expected: 4 (pairs 0-1 and 4-5, each bidirectional)')
+print()
+
+for k in range(edge_index.shape[1]):
+    i, j = edge_index[0,k].item(), edge_index[1,k].item()
+    print(f'  Node {i} → Node {j} (corr={corr[i,j]:.2f})')
+"
+```
+
+### 4. Full Graph (All 3 Edge Types)
+```python
+python -c "
+import numpy as np
+import torch
+from src.graph.builder import build_full_graph, get_graph_stats, EDGE_SECTOR, EDGE_SUPPLY_CHAIN, EDGE_CORRELATION
+from src.data.stocks import get_ticker_to_index
+
+ticker_to_idx = get_ticker_to_index()
+n = len(ticker_to_idx)
+
+# Fake features + correlation matrix
+features = torch.randn(n, 21)
+corr = np.eye(n)
+for i in range(0, n-1, 2):
+    corr[i, i+1] = corr[i+1, i] = 0.8
+
+data = build_full_graph(features, corr_matrix=corr, threshold=0.6, ticker_to_idx=ticker_to_idx)
+stats = get_graph_stats(data)
+
+print('=== Full Graph ===')
+print(f'Nodes: {stats[\"num_nodes\"]}')
+print(f'Total edges: {stats[\"num_edges\"]}')
+print(f'Density: {stats[\"density\"]:.4f}')
+print(f'Sector edges: {stats[\"sector_edges\"]}')
+print(f'Supply chain edges: {stats[\"supply_chain_edges\"]}')
+print(f'Correlation edges: {stats[\"correlation_edges\"]}')
+print(f'Feature shape: {data.x.shape}')
+print(f'Edge index shape: {data.edge_index.shape}')
+"
+```
+**Expected:** ~200+ total edges, all 3 types present, density ~0.05-0.15.
+
+### 5. Static Graph (Without Correlation)
+```python
+python -c "
+from src.graph.builder import build_static_graph, EDGE_SECTOR, EDGE_SUPPLY_CHAIN
+
+edge_index, edge_type = build_static_graph()
+print('=== Static Graph (Sector + Supply Chain) ===')
+print(f'Total edges: {edge_index.shape[1]}')
+print(f'Sector: {int((edge_type == EDGE_SECTOR).sum())}')
+print(f'Supply chain: {int((edge_type == EDGE_SUPPLY_CHAIN).sum())}')
+print(f'Edge type tensor: {edge_type.shape}')
+"
+```
+
+---
+
 ## Running Tests (Automated — Har Phase Ke Baad)
 
 ### Run All Tests
@@ -467,6 +590,8 @@ python -m pytest tests/ -v
 python -m pytest tests/test_phase0.py -v    # Phase 0 only
 python -m pytest tests/test_data.py -v      # Phase 1 only
 python -m pytest tests/test_features.py -v  # Phase 2 only
+python -m pytest tests/test_sentiment.py -v # Phase 3 only
+python -m pytest tests/test_graph.py -v     # Phase 4 only
 ```
 
 ### Run Single Test
@@ -526,8 +651,11 @@ fqn1/
 │   │   ├── download.py      # yfinance downloader
 │   │   ├── quality.py       # Data quality checker
 │   │   └── features.py      # 21 indicators + z-score normalization
-│   ├── sentiment/           # Phase 3: FinBERT
-│   ├── graph/               # Phase 4: Graph construction
+│   ├── sentiment/
+│   │   ├── finbert.py       # FinBERT sentiment scoring
+│   │   └── news_fetcher.py  # Google News RSS + SQLite cache
+│   ├── graph/
+│   │   └── builder.py       # 3 edge types + PyG Data objects
 │   ├── rl/                  # Phase 6-7: RL environment + agents
 │   ├── gan/                 # Phase 8-9: TimeGAN
 │   ├── nas/                 # Phase 10: DARTS
@@ -537,7 +665,9 @@ fqn1/
 ├── tests/
 │   ├── test_phase0.py       # 18 tests
 │   ├── test_data.py         # 12 tests
-│   └── test_features.py     # 18 tests
+│   ├── test_features.py     # 18 tests
+│   ├── test_sentiment.py    # 19 tests
+│   └── test_graph.py        # 20 tests
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)

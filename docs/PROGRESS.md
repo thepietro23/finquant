@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-16
-> **Current Phase:** Phase 3 (FinBERT Sentiment) — ✅ DONE
-> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19) = 67/67 tests GREEN
+> **Current Phase:** Phase 4 (Graph Construction) — ✅ DONE
+> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20) = 87/87 tests GREEN
 
 ---
 
@@ -14,7 +14,7 @@
 | 1 | Data Pipeline | ✅ DONE | D1-D2 | 45 stocks + index downloaded, quality verified |
 | 2 | Feature Engineering | ✅ DONE | D3-D4 | 21 technical indicators + z-score normalization |
 | 3 | FinBERT Sentiment | ✅ DONE | D5-D6 | FinBERT + news fetcher + sentiment matrix |
-| 4 | Graph Construction | NOT STARTED | D6-D7 | Correlation + sector + supply chain edges |
+| 4 | Graph Construction | ✅ DONE | D6-D7 | Correlation + sector + supply chain edges |
 | 5 | T-GAT Model | NOT STARTED | D8-D10 | Temporal Graph Attention Network |
 | 6 | RL Environment | NOT STARTED | D10-D12 | Gym env for portfolio management |
 | 7 | Deep RL Agent | NOT STARTED | D12-D17 | PPO + SAC training |
@@ -182,7 +182,63 @@
 
 ---
 
-## PHASES 4-15: Upcoming (Brief)
+## PHASE 4: Graph Construction — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/graph/builder.py` | Multi-relational graph builder: 3 edge types + PyG Data objects | ~360 | ✅ |
+| `tests/test_graph.py` | 20 tests (16 unit + 4 edge cases) | ~290 | ✅ 20/20 PASS |
+
+### Graph Structure
+| Edge Type | Constant | Source | Count | Nature |
+|-----------|----------|--------|-------|--------|
+| Sector edges | `EDGE_SECTOR=0` | Same sector stocks connected | ~160 directed | Static (never changes) |
+| Supply chain | `EDGE_SUPPLY_CHAIN=1` | Business relationships (TATASTEEL→MARUTI) | ~54 directed | Static (never changes) |
+| Correlation | `EDGE_CORRELATION=2` | Rolling |corr| > 0.6 threshold | Variable | Dynamic (changes daily) |
+
+### Key Functions
+| Function | Input | Output | Kya Karta Hai |
+|----------|-------|--------|---------------|
+| `build_sector_edges()` | ticker_to_idx | edge_index [2, N] | Same sector stocks connect (bidirectional) |
+| `build_supply_chain_edges()` | ticker_to_idx | edge_index [2, N] | Business relationship edges (bidirectional) |
+| `build_correlation_edges_fast()` | corr_matrix, threshold | edge_index [2, N] | Vectorized: |corr| > threshold pairs (no self-loops) |
+| `build_static_graph()` | ticker_to_idx | (edge_index, edge_type) | Sector + supply chain combined, deduplicated |
+| `build_full_graph()` | node_features, corr_matrix | PyG Data object | All 3 edge types → ready for T-GAT |
+| `build_graph_sequence()` | feature_tensor, close_prices | list[Data] | One graph per trading day with dynamic corr edges |
+| `get_graph_stats()` | PyG Data | dict | Node count, edge counts by type, density |
+
+### Key Decisions
+1. **Vectorized correlation edges** — `np.triu` + `np.where` instead of double for-loop. O(n²) but with NumPy C-level speed.
+2. **Bidirectional all edges** — Sector, supply chain, and correlation edges all added in both directions (a→b, b→a). GNN message passing works better with undirected graphs.
+3. **Edge deduplication** — Same stock pair can be in both sector AND supply chain. `_deduplicate_edges()` keeps first occurrence to avoid double-counting.
+4. **Graph sequence builder** — One PyG Data object per trading day. Static edges computed once, reused. Only correlation edges recomputed daily.
+5. **Empty edge handling** — Single stock or zero correlation → returns `torch.zeros((2, 0))` shape, not error.
+
+### Kyu Banaya (Why / Reasoning)
+1. **GNN ko adjacency matrix chahiye** — T-GAT ko batana padta hai kaunse stocks connected hain. Random connections galat honge — domain knowledge based edges correct hain.
+2. **3 edge types kyu?** — Different relationships capture karte hain: sector = similar industry, supply chain = business dependency, correlation = statistical co-movement. Multi-relational GNN in teeno ko alag alag process kar sakta hai.
+3. **Dynamic correlation kyu?** — 2020 COVID mein sab stocks correlated the (panic selling). Normal times mein IT aur Pharma uncorrelated. Static correlation misleading hogi — rolling window (60 days) se current market regime capture hota hai.
+4. **PyG Data object kyu?** — PyTorch Geometric ka standard format. T-GAT, GCN, GAT sab isse directly accept karte hain. Reinventing the wheel ki zarurat nahi.
+5. **Threshold 0.6 kyu?** — Too low (0.3) = too many edges = noise. Too high (0.9) = too few edges = information loss. 0.6 = moderate, literature standard for financial correlation networks.
+
+### Tests: 20/20 PASSING ✅
+- Sector edges (3): correct count, bidirectional, no self-loops
+- Supply chain edges (3): exist, bidirectional, no self-loops
+- Correlation edges (3): threshold respected, no self-loops, bidirectional
+- Static graph (2): both edge types present, type length matches
+- Full graph (3): correct shape, all 3 types with correlation, numpy auto-convert
+- Graph stats (2): expected keys, density [0,1]
+- Edge cases (4): zero correlation, perfect correlation, single stock, negative correlation
+
+### Git Commit
+```
+Phase 4: Graph construction — 3 edge types + PyG Data (2026-03-16)
+```
+
+---
+
+## PHASES 5-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
@@ -209,7 +265,7 @@
 | 1 | 12/12 | ✓ handled | - | ✅ PASS |
 | 2 | 14/14 | 4/4 | - | ✅ PASS |
 | 3 | 15/15 | 4/4 | - | ✅ PASS |
-| 4 | -/6 | -/4 | Integration #1 | - |
+| 4 | 16/16 | 4/4 | Integration #1 | ✅ PASS |
 | 5 | -/8 | -/3 | - | - |
 | 6 | -/10 | -/6 | - | - |
 | 7 | -/8 | -/4 | - | - |
@@ -219,7 +275,7 @@
 | 12 | -/6 | -/3 | - | - |
 | 13 | -/10 | -/5 | Integration #3 | - |
 | 14 | - | - | - | - |
-| **Total** | **59/124** | **8+/54** | **0/11** | **67/189** |
+| **Total** | **75/124** | **12+/54** | **0/11** | **87/189** |
 
 ---
 
