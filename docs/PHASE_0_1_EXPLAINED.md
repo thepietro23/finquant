@@ -1371,4 +1371,174 @@ Phase 7: Deep RL Agent (PPO/SAC) (next)
 
 ---
 
-> **Next: Phase 7 — Deep RL Agent. PPO (primary) + SAC (comparison). Agent environment mein train karega — 500K timesteps. Stable-Baselines3 use karenge.**
+---
+
+## PHASE 7: Deep RL Agent (PPO + SAC)
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/rl/agent.py` | PPO + SAC agent creation, training, evaluation, comparison, save/load | Environment ready hai (Phase 6). Ab agent chahiye jo environment mein practice karke seekhe ki "optimal portfolio kya hai." PPO primary hai, SAC comparison ke liye. |
+| `tests/test_agent.py` | 16 tests covering both algorithms, eval, save/load, edge cases | Agent create hota hai? Train hota hai? Valid actions deta hai? Save/load ke baad same predictions? |
+
+### PPO vs SAC — Simple Analogy
+
+```
+PPO (Proximal Policy Optimization):
+  Sooch: Tu badminton seekh raha hai.
+  PPO approach: "Roz thoda practice kar, zyada change mat kar apne style mein."
+  - Conservative updates: policy zyada nahi badalta ek step mein
+  - Clip range 0.2: "Maximum 20% change allowed per update"
+  - Stable training: rarely diverges
+  - Good default choice for continuous actions
+
+SAC (Soft Actor-Critic):
+  Sooch: Tu badminton seekh raha hai.
+  SAC approach: "Alag alag shots try kar, explore kar, par best wale remember kar."
+  - Entropy bonus: encourages exploration (try new things)
+  - Replay buffer: past experiences reuse karta hai
+  - More sample-efficient (faster learning with less data)
+  - But: more complex, more hyperparameters
+
+For thesis: DONO train karo, compare karo, best pick karo.
+```
+
+### PPO — How It Works
+
+```
+1. COLLECT EXPERIENCE:
+   Agent environment mein 2048 steps chalta hai.
+   Har step: (observation, action, reward, next_obs)
+   Sab store karo.
+
+2. CALCULATE ADVANTAGE:
+   "Kya action liya tha usse expected se better hua ya worse?"
+   Advantage > 0: "Yeh action achha tha, isko zyada karo"
+   Advantage < 0: "Yeh action bura tha, isko kam karo"
+
+3. UPDATE POLICY (10 epochs over collected data):
+   Policy = neural network jo obs → action mapping seekhta hai.
+
+   KEY INNOVATION — Clipping:
+   ratio = new_policy(action) / old_policy(action)
+   clipped_ratio = clip(ratio, 1-0.2, 1+0.2)
+   loss = min(ratio × advantage, clipped_ratio × advantage)
+
+   Matlab: "Agar naya policy purane se 20% se zyada different ho,
+   toh chhod do. Zyada change dangerous hai."
+
+4. REPEAT:
+   New policy se experience collect karo → update → repeat
+   500K steps = ~2000 episodes of 252 days
+
+Policy Network: obs (1050 dims) → [128] → [64] → action (47 dims)
+  Only 46K parameters. Very lightweight.
+```
+
+### SAC — Key Difference
+
+```
+SAC has 3 extra things over PPO:
+
+1. REPLAY BUFFER:
+   Store 100K past (obs, action, reward, next_obs) tuples.
+   Train on random samples from buffer.
+   Kyu? "Purane experiences waste nahi karo."
+   PPO data use karta hai ek baar aur phir fek deta hai.
+   SAC data reuse karta hai = faster learning.
+
+2. ENTROPY BONUS:
+   reward_effective = reward + alpha × entropy(policy)
+   entropy = "kitni randomness hai policy mein"
+   High entropy = exploring different actions
+   Kyu? Without exploration, agent local minimum mein fas sakta hai.
+
+3. TWO Q-NETWORKS:
+   Min of two Q-values use karta hai.
+   "Pessimistic estimate" — overestimation avoid karta hai.
+   More stable value estimates.
+
+Trade-off: SAC faster seekhta hai par zyada complex + memory.
+```
+
+### Training Pipeline
+
+```
+1. Create environment with training data (2016-2021)
+2. Create eval environment with validation data (2022-2023)
+3. Create PPO agent → train 500K steps
+   - Every 5000 steps: evaluate on val set → log Sharpe, return, drawdown
+   - Save best model (highest Sharpe on val)
+4. Create SAC agent → same training
+5. Compare both → pick winner for thesis
+
+PortfolioMetricsCallback:
+  Not just "average reward" — we log FINANCIAL metrics:
+  - Sharpe ratio (risk-adjusted return)
+  - Max drawdown (worst peak-to-trough)
+  - Total return (did we make money?)
+  These matter for thesis results.
+```
+
+### Model Size — VRAM Budget
+
+```
+PPO policy:  46K params → ~0.18 MB
+SAC policy: 117K params → ~0.47 MB
+Replay buffer: 100K × (obs_dim + action_dim + 3) × 4 bytes ≈ 45 MB
+
+Total VRAM usage during training:
+  PPO: ~50 MB (model + batch data)
+  SAC: ~100 MB (model + buffer)
+
+Budget: 4 GB VRAM → plenty of room!
+  Even with T-GAT (0.1 MB) + FinBERT (220 MB) inference.
+```
+
+### Tests: 16/16 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T7.1 | PPO creates | create_ppo_agent() no error |
+| T7.2 | PPO trains | 200 steps training works |
+| T7.3 | PPO predicts | Valid action shape, in action_space |
+| T7.4 | SAC creates | create_sac_agent() no error |
+| T7.5 | SAC trains | 200 steps training works |
+| T7.6 | SAC predicts | Valid action shape |
+| T7.7 | Eval metrics | mean_return, sharpe, max_dd returned |
+| T7.8 | Finite metrics | No NaN/Inf in evaluation |
+| T7.9 | Save/load PPO | Same predictions after save → load |
+| T7.10 | Save/load SAC | Same predictions after save → load |
+| T7.11 | Custom LR | learning_rate=0.001 accepted |
+| T7.12 | Custom arch | [64, 32] network works |
+| E7.1 | Single stock | 1-stock env, action shape (1,) |
+| E7.2 | Short training | 64 steps, no crash |
+| E7.3 | Compare agents | Returns winner (PPO or SAC) |
+| E7.4 | Eval callback | Training with periodic evaluation |
+
+### File Flow (Updated — Complete P0-P7 Pipeline)
+
+```
+Phase 0: config.yaml + seed + logger + metrics
+Phase 1: stocks.py → download.py → quality.py → data/*.csv
+Phase 2: features.py → Feature Tensor (47, ~2200, 21)
+Phase 3: news_fetcher.py → finbert.py → Sentiment Matrix (47, ~2200)
+Phase 4: builder.py → PyG Data Objects (per day)
+Phase 5: tgat.py → Stock Embeddings (47, 64)
+Phase 6: environment.py → Gymnasium PortfolioEnv
+Phase 7: agent.py → PPO/SAC trained agents        ← NEW
+
+                    agent.py
+                   /        \
+              PPO agent    SAC agent
+                   \        /
+                    compare
+                       |
+                       v
+              Winner → Phase 8: TimeGAN (data augmentation)
+```
+
+---
+
+> **Next: Phase 8-9 — TimeGAN + Stress Testing. Synthetic data generation for augmentation. Stress test: "What if 2008 crash happens again?"**

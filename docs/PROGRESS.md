@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-16
-> **Current Phase:** Phase 6 (RL Environment) — ✅ DONE
-> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20), Phase 5 ✅ (19/19), Phase 6 ✅ (23/23) = 129/129 tests GREEN
+> **Current Phase:** Phase 7 (Deep RL Agent) — ✅ DONE
+> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20), Phase 5 ✅ (19/19), Phase 6 ✅ (23/23), Phase 7 ✅ (16/16) = 145/145 tests GREEN
 
 ---
 
@@ -17,7 +17,7 @@
 | 4 | Graph Construction | ✅ DONE | D6-D7 | Correlation + sector + supply chain edges |
 | 5 | T-GAT Model | ✅ DONE | D8-D10 | Temporal Graph Attention Network |
 | 6 | RL Environment | ✅ DONE | D10-D12 | Gym env for portfolio management |
-| 7 | Deep RL Agent | NOT STARTED | D12-D17 | PPO + SAC training |
+| 7 | Deep RL Agent | ✅ DONE | D12-D17 | PPO + SAC training |
 | 8-9 | TimeGAN + Stress | NOT STARTED | D18-D24 | Synthetic data + stress testing |
 | 10 | NAS/DARTS | NOT STARTED | D25-D30 | Architecture search |
 | 11 | Federated Learning | NOT STARTED | D31-D37 | Multi-client FL with DP |
@@ -307,7 +307,41 @@ Output: (n_stocks, 64) stock embeddings
 
 ---
 
-## PHASES 7-15: Upcoming (Brief)
+## PHASE 7: Deep RL Agent — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/rl/agent.py` | PPO + SAC agents, training, evaluation, comparison | ~250 | ✅ |
+| `tests/test_agent.py` | 16 tests (12 unit + 4 edge cases) | ~230 | ✅ 16/16 PASS |
+
+### Key Components
+| Function | Kya Karta Hai |
+|----------|---------------|
+| `create_ppo_agent()` | PPO with config-driven hyperparams, MLP policy [128, 64] |
+| `create_sac_agent()` | SAC with replay buffer, auto entropy |
+| `train_agent()` | Training with eval callback + portfolio metrics logging |
+| `evaluate_agent()` | Multi-episode evaluation → mean return, Sharpe, max DD |
+| `compare_agents()` | PPO vs SAC head-to-head comparison |
+| `save_agent() / load_agent()` | Model persistence (.zip format) |
+
+### Key Decisions
+1. **Stable-Baselines3** — Production-quality RL implementations. Tested, documented, maintained. No need to implement PPO from scratch.
+2. **Small policy network** [128, 64] — Only ~46K params for PPO. Lightweight for 4GB VRAM. Larger networks don't help with 47 stocks.
+3. **PPO primary, SAC comparison** — PPO is stable and good for continuous actions. SAC is more sample-efficient. Compare both in thesis.
+4. **PortfolioMetricsCallback** — Custom callback logs Sharpe/return/drawdown during training, not just loss.
+
+### Tests: 16/16 PASSING ✅
+- PPO (3): creates, trains, predicts valid actions
+- SAC (3): creates, trains, predicts valid actions
+- Evaluation (2): returns expected keys, finite metrics
+- Save/Load (2): PPO and SAC save → load → same predictions
+- Custom config (2): custom LR, custom architecture
+- Edge cases (4): single stock, 10-step training, compare, eval callback
+
+---
+
+## PHASES 8-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
@@ -337,14 +371,14 @@ Output: (n_stocks, 64) stock embeddings
 | 4 | 16/16 | 4/4 | Integration #1 | ✅ PASS |
 | 5 | 15/15 | 4/4 | - | ✅ PASS |
 | 6 | 17/17 | 6/6 | - | ✅ PASS |
-| 7 | -/8 | -/4 | - | - |
+| 7 | 12/12 | 4/4 | - | ✅ PASS |
 | 8-9 | -/13 | -/7 | Integration #2 | - |
 | 10 | -/7 | -/3 | - | - |
 | 11 | -/8 | -/4 | - | - |
 | 12 | -/6 | -/3 | - | - |
 | 13 | -/10 | -/5 | Integration #3 | - |
 | 14 | - | - | - | - |
-| **Total** | **107/124** | **22+/54** | **0/11** | **129/189** |
+| **Total** | **119/124** | **26+/54** | **0/11** | **145/189** |
 
 ---
 

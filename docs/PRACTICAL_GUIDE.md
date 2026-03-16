@@ -809,6 +809,116 @@ if env.done:
 
 ---
 
+## Phase 7: Deep RL Agent — Manual Testing
+
+### 1. Create PPO Agent
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+from src.rl.agent import create_ppo_agent
+
+np.random.seed(42)
+n = 5
+features = np.random.randn(n, 300, 21).astype(np.float32)
+prices = 100 * np.cumprod(1 + np.random.randn(n, 300) * 0.01, axis=1).astype(np.float32)
+env = PortfolioEnv(features, prices, episode_length=50)
+
+model = create_ppo_agent(env, device='cpu')
+print(f'PPO params: {sum(p.numel() for p in model.policy.parameters()):,}')
+print(f'Device: {model.device}')
+print(f'Policy: {model.policy}')
+"
+```
+
+### 2. Train + Evaluate PPO (Quick)
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+from src.rl.agent import create_ppo_agent, evaluate_agent
+
+np.random.seed(42)
+n = 5
+features = np.random.randn(n, 300, 21).astype(np.float32)
+prices = 100 * np.cumprod(1 + np.random.randn(n, 300) * 0.01, axis=1).astype(np.float32)
+env = PortfolioEnv(features, prices, episode_length=50)
+
+model = create_ppo_agent(env, device='cpu')
+print('Training PPO (1000 steps)...')
+model.learn(total_timesteps=1000)
+print('Training done!')
+
+metrics = evaluate_agent(model, env, n_episodes=3)
+print(f'=== PPO Evaluation (3 episodes) ===')
+print(f'Mean return: {metrics[\"mean_return\"]:.2%}')
+print(f'Sharpe ratio: {metrics[\"mean_sharpe\"]:.2f}')
+print(f'Max drawdown: {metrics[\"mean_max_dd\"]:.2%}')
+print(f'Avg steps/episode: {metrics[\"mean_steps\"]:.0f}')
+"
+```
+
+### 3. PPO vs SAC Comparison
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+from src.rl.agent import create_ppo_agent, create_sac_agent, compare_agents
+
+np.random.seed(42)
+n = 5
+features = np.random.randn(n, 300, 21).astype(np.float32)
+prices = 100 * np.cumprod(1 + np.random.randn(n, 300) * 0.01, axis=1).astype(np.float32)
+env = PortfolioEnv(features, prices, episode_length=50)
+
+print('Training PPO (1000 steps)...')
+ppo = create_ppo_agent(env, device='cpu')
+ppo.learn(total_timesteps=1000)
+
+print('Training SAC (1000 steps)...')
+sac = create_sac_agent(env, device='cpu', buffer_size=1000, batch_size=32, learning_starts=100)
+sac.learn(total_timesteps=1000)
+
+print()
+result = compare_agents(ppo, sac, env, n_episodes=3)
+print(f'=== PPO vs SAC ===')
+print(f'PPO — return: {result[\"ppo\"][\"mean_return\"]:.2%}, sharpe: {result[\"ppo\"][\"mean_sharpe\"]:.2f}')
+print(f'SAC — return: {result[\"sac\"][\"mean_return\"]:.2%}, sharpe: {result[\"sac\"][\"mean_sharpe\"]:.2f}')
+print(f'Winner: {result[\"winner\"]}')
+"
+```
+
+### 4. Save and Load Model
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+from src.rl.agent import create_ppo_agent, save_agent, load_agent
+
+np.random.seed(42)
+n = 5
+features = np.random.randn(n, 300, 21).astype(np.float32)
+prices = 100 * np.cumprod(1 + np.random.randn(n, 300) * 0.01, axis=1).astype(np.float32)
+env = PortfolioEnv(features, prices, episode_length=50)
+
+model = create_ppo_agent(env, device='cpu')
+model.learn(total_timesteps=500)
+
+save_agent(model, 'models/test_ppo')
+print('Model saved!')
+
+loaded = load_agent('models/test_ppo', env=env, algorithm='PPO')
+print('Model loaded!')
+
+obs, _ = env.reset(seed=42)
+action, _ = loaded.predict(obs, deterministic=True)
+print(f'Action: {action}')
+print(f'Weights sum: {action.sum():.4f}')
+"
+```
+
+---
+
 ## Running Tests (Automated — Har Phase Ke Baad)
 
 ### Run All Tests
@@ -827,6 +937,7 @@ python -m pytest tests/test_sentiment.py -v # Phase 3 only
 python -m pytest tests/test_graph.py -v     # Phase 4 only
 python -m pytest tests/test_tgat.py -v     # Phase 5 only
 python -m pytest tests/test_env.py -v      # Phase 6 only
+python -m pytest tests/test_agent.py -v    # Phase 7 only
 ```
 
 ### Run Single Test
@@ -894,7 +1005,8 @@ fqn1/
 │   ├── models/
 │   │   └── tgat.py          # T-GAT: multi-relational GAT + GRU
 │   ├── rl/
-│   │   └── environment.py   # Gymnasium portfolio env
+│   │   ├── environment.py   # Gymnasium portfolio env
+│   │   └── agent.py         # PPO + SAC agents (SB3)
 │   ├── rl/                  # Phase 6-7: RL environment + agents
 │   ├── gan/                 # Phase 8-9: TimeGAN
 │   ├── nas/                 # Phase 10: DARTS
@@ -908,7 +1020,8 @@ fqn1/
 │   ├── test_sentiment.py    # 19 tests
 │   ├── test_graph.py        # 20 tests
 │   ├── test_tgat.py         # 19 tests
-│   └── test_env.py          # 23 tests
+│   ├── test_env.py          # 23 tests
+│   └── test_agent.py        # 16 tests
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)
