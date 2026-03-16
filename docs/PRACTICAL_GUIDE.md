@@ -300,7 +300,8 @@ fig, axes = plt.subplots(4, 1, figsize=(14, 10), sharex=True)
 axes[0].plot(recent.index, recent['Close'], label='Close', color='black')
 axes[0].plot(recent.index, recent['bb_upper'], '--', label='BB Upper', color='red', alpha=0.5)
 axes[0].plot(recent.index, recent['bb_lower'], '--', label='BB Lower', color='green', alpha=0.5)
-axes[0].fill_between(recent.index, recent['bb_lower'], recent['bb_upper'], alpha=0.1)
+axes[0].fill_between(recent.index, recent['bb_lower'],
+ recent['bb_upper'], alpha=0.1)
 axes[0].set_title('RELIANCE — Price + Bollinger Bands')
 axes[0].legend()
 
@@ -332,17 +333,122 @@ print('Open it to see RELIANCE ke Bollinger Bands, RSI, MACD, aur Volume!')
 ---
 
 ## Phase 3: FinBERT Sentiment — Manual Testing
-_(Will be added after Phase 3 is built)_
 
-**Preview of what you'll be able to test:**
+### 1. Single Headline Sentiment
 ```python
-# Sentiment score for a financial headline
-from src.sentiment.finbert import get_sentiment
-score = get_sentiment("Reliance Q3 profit beats estimates, revenue up 15%")
-print(score)  # Expected: ~0.7 (positive)
+python -c "
+from src.sentiment.finbert import predict_sentiment
 
-score = get_sentiment("HDFC Bank reports higher NPAs, stock falls 3%")
-print(score)  # Expected: ~-0.6 (negative)
+# Positive news
+result = predict_sentiment('Reliance Q3 profit beats estimates, revenue up 25%')
+print(f'Positive news: score={result[\"score\"]:.3f}')
+print(f'  P(pos)={result[\"positive\"]:.3f}, P(neg)={result[\"negative\"]:.3f}, P(neu)={result[\"neutral\"]:.3f}')
+print()
+
+# Negative news
+result = predict_sentiment('Stock crashes 15% after company reports massive losses and debt default')
+print(f'Negative news: score={result[\"score\"]:.3f}')
+print(f'  P(pos)={result[\"positive\"]:.3f}, P(neg)={result[\"negative\"]:.3f}, P(neu)={result[\"neutral\"]:.3f}')
+print()
+
+# Neutral news
+result = predict_sentiment('The company held its annual general meeting on Monday')
+print(f'Neutral news: score={result[\"score\"]:.3f}')
+print(f'  P(pos)={result[\"positive\"]:.3f}, P(neg)={result[\"negative\"]:.3f}, P(neu)={result[\"neutral\"]:.3f}')
+print()
+
+# Try your own!
+result = predict_sentiment('RBI raises repo rate by 25 basis points')
+print(f'RBI rate hike: score={result[\"score\"]:.3f}')
+"
+```
+**Expected:** Positive news → score ~0.9, Negative → ~-0.9, Neutral → ~0.0
+
+### 2. Batch Prediction (Multiple Headlines)
+```python
+python -c "
+from src.sentiment.finbert import predict_batch
+
+headlines = [
+    'TCS wins \$2 billion deal from major US bank',
+    'Infosys faces \$50 million penalty for data breach',
+    'HDFC Bank to open 500 new branches next year',
+    'Market crashes on global recession fears',
+    'Adani stock rebounds after short seller report dismissed',
+]
+
+results = predict_batch(headlines, batch_size=16)
+print('=== Batch Sentiment Scores ===')
+for headline, r in zip(headlines, results):
+    emoji = '+' if r['score'] > 0.1 else ('-' if r['score'] < -0.1 else '~')
+    print(f'  [{emoji}] {r[\"score\"]:+.3f}  {headline[:60]}')
+"
+```
+
+### 3. Sentiment Decay Demo
+```python
+python -c "
+import pandas as pd
+from src.sentiment.finbert import build_sentiment_series
+
+dates = pd.bdate_range('2024-01-01', periods=20)
+# Only 2 days have news
+daily = {
+    '2024-01-01': {'avg_score': 0.8, 'num_headlines': 3},
+    '2024-01-10': {'avg_score': -0.5, 'num_headlines': 2},
+}
+series = build_sentiment_series(daily, dates, decay_factor=0.95)
+
+print('=== Sentiment Decay Over 20 Days ===')
+for date, val in zip(dates, series):
+    bar = '#' * int(abs(val) * 30)
+    sign = '+' if val >= 0 else '-'
+    marker = ' <-- NEWS' if str(date.date()) in daily else ''
+    print(f'  {date.date()} [{sign}] {val:+.3f} {bar}{marker}')
+"
+```
+**Expected:** Score decays from 0.8 towards 0, resets to -0.5 on Jan 10, then decays again.
+
+### 4. News Fetcher (Live — Needs Internet)
+```python
+python -c "
+from src.sentiment.news_fetcher import fetch_stock_news, get_company_name
+
+# Check company name mapping
+for t in ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS']:
+    print(f'{t} -> {get_company_name(t)}')
+print()
+
+# Fetch live news (needs internet)
+print('Fetching RELIANCE news...')
+headlines = fetch_stock_news('RELIANCE.NS', max_results=5)
+for h in headlines:
+    date = h['published'].strftime('%Y-%m-%d') if h['published'] else 'unknown'
+    print(f'  [{date}] {h[\"title\"][:80]}')
+"
+```
+
+### 5. Full Pipeline: Headlines → Sentiment Scores
+```python
+python -c "
+from src.sentiment.news_fetcher import fetch_stock_news
+from src.sentiment.finbert import predict_batch
+
+# Fetch + Score for RELIANCE
+headlines = fetch_stock_news('RELIANCE.NS', max_results=10)
+texts = [h['title'] for h in headlines]
+scores = predict_batch(texts)
+
+print('=== RELIANCE.NS Live Sentiment ===')
+for h, s in zip(headlines, scores):
+    emoji = '+' if s['score'] > 0.1 else ('-' if s['score'] < -0.1 else '~')
+    date = h['published'].strftime('%m-%d') if h['published'] else '??'
+    print(f'  [{emoji}] {s[\"score\"]:+.3f}  [{date}] {h[\"title\"][:65]}')
+
+import numpy as np
+avg = np.mean([s['score'] for s in scores])
+print(f'\nAverage sentiment: {avg:+.3f}')
+"
 ```
 
 ---

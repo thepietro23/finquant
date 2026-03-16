@@ -146,7 +146,43 @@
 
 ---
 
-## PHASES 3-15: Upcoming (Brief)
+## PHASE 3: FinBERT Sentiment — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/sentiment/finbert.py` | FinBERT model loading, single/batch prediction, daily aggregation, decay series, sentiment matrix | ~300 | ✅ |
+| `src/sentiment/news_fetcher.py` | Google News RSS fetcher, ticker-to-company mapping, SQLite cache | ~200 | ✅ |
+| `tests/test_sentiment.py` | 19 tests (15 unit + 4 edge cases) | ~280 | ✅ 19/19 PASS |
+
+### Key Decisions
+1. **Local model loading** — ProsusAI/finbert (417MB) downloaded manually to `data/finbert_local/` because HuggingFace downloads fail behind college proxy (SSL interception). Code auto-detects local vs hub.
+2. **torch.load patch** — torch 2.5.1 `weights_only=True` breaks with .bin files. Patched for compatibility.
+3. **FP16 on GPU** — FinBERT loads in half precision on CUDA (~200MB VRAM instead of ~400MB). CPU fallback for testing.
+4. **Sentiment decay (0.95)** — Days without news: previous sentiment * 0.95. After ~60 days without news, sentiment decays to near-zero.
+5. **Score = P(positive) - P(negative)** — Range [-1, +1]. Simple, interpretable.
+6. **SQLite cache** — Avoid re-computing sentiment for same headlines. Persistent across runs.
+
+### Kyu Banaya (Why / Reasoning)
+1. **Market sirf numbers se nahi chalta** — "RBI raises interest rates" headline se banking stocks girengi. Yeh info OHLCV data mein nahi hai.
+2. **FinBERT kyu?** — General BERT financial text samajhta nahi. "Bearish" ka matlab finance mein alag hai. FinBERT financial corpus pe trained hai.
+3. **Google News RSS kyu?** — Free, no API key. Real-time headlines. Limitation: only recent ~100 results, not historical archive.
+4. **Decay kyu?** — Agar Monday ko news aayi "+ve", Tuesday ko koi news nahi, toh Tuesday ka sentiment Monday jaisa hi hona chahiye (thoda kam). Bina decay ke gaps mein 0 hoga = misleading.
+5. **Batch prediction kyu?** — 50 stocks × 15 headlines = 750 predictions. One-by-one slow hai. Batching = GPU parallelism.
+
+### Tests: 19/19 PASSING ✅
+- Model loading (2): loads successfully on CPU, has 3 output labels
+- Prediction accuracy (4): positive text → +ve score, negative → -ve, neutral → ~0, all in [-1,+1]
+- Batch (2): correct count, matches individual predictions
+- Aggregation (1): multiple headlines per day averaged correctly
+- Decay series (2): fills gaps with decay, new headline resets decay
+- Matrix (1): correct (n_stocks, n_timesteps) shape, float32
+- Edge cases (4): empty text → neutral, short text → neutral, decay → 0 over time, single headline
+- News fetcher (3): company name lookup, unknown ticker fallback, SQLite DB init
+
+---
+
+## PHASES 4-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|

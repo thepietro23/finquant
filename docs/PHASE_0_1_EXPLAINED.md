@@ -447,4 +447,218 @@ Phase 3: FinBERT Sentiment (next)
 
 ---
 
-> **Next: Phase 3 — FinBERT Sentiment. Google News RSS se headlines → ProsusAI/finBERT se sentiment scores → daily aggregation per stock.**
+---
+
+## PHASE 3: FinBERT Sentiment
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/sentiment/finbert.py` | FinBERT model loading + sentiment scoring + aggregation + decay | Market sirf numbers se nahi chalta. "RBI rate hike" headline se banking stocks girengi — yeh info OHLCV data mein nahi hai. Sentiment feature model ko market mood batata hai. |
+| `src/sentiment/news_fetcher.py` | Google News RSS se headlines fetch + SQLite cache | Free news source (no API key). Har stock ke liye "company name + stock NSE" search. Cache se duplicate computation avoid. |
+| `tests/test_sentiment.py` | 19 tests covering model, prediction, aggregation, decay | FinBERT sahi classify karta hai? Batch = individual? Decay sahi kaam karta hai? Edge cases handle? |
+
+### FinBERT — Kya Hai Aur Kaise Kaam Karta Hai
+
+```
+Normal BERT:
+  Input: "The market is bearish"
+  BERT samajhta hai: "bearish" = adjective, koi animal related?
+
+FinBERT (ProsusAI/finbert):
+  Input: "The market is bearish"
+  FinBERT samajhta hai: "bearish" = negative market sentiment = stock prices gir sakte hain
+
+Kyu? FinBERT financial text pe fine-tuned hai — Financial PhraseBank + TRC2 dataset.
+3 labels: positive, negative, neutral
+```
+
+**Scoring Formula:**
+```
+score = P(positive) - P(negative)
+
+Example 1: "Reliance Q3 profit beats estimates, revenue up 25%"
+  P(positive) = 0.955, P(negative) = 0.023, P(neutral) = 0.021
+  score = 0.955 - 0.023 = +0.932 (strongly positive)
+
+Example 2: "Stock crashes 15% after massive losses reported"
+  P(positive) = 0.02, P(negative) = 0.95, P(neutral) = 0.03
+  score = 0.02 - 0.95 = -0.93 (strongly negative)
+
+Example 3: "Company held annual general meeting"
+  P(positive) = 0.10, P(negative) = 0.05, P(neutral) = 0.85
+  score = 0.10 - 0.05 = +0.05 (almost neutral)
+
+Range: [-1, +1]. Simple, interpretable. -1 = worst, +1 = best.
+```
+
+### News Fetcher — Google News RSS
+
+```
+Google News RSS URL:
+  https://news.google.com/rss/search?q=Reliance+Industries+stock+NSE&hl=en-IN&gl=IN
+
+Free, no API key needed.
+Limitation: Only ~100 recent results. Historical archive nahi milta.
+For thesis: Recent sentiment demonstrate karenge, historical ke liye decay mechanism hai.
+```
+
+**Ticker to Company Mapping:**
+```python
+TICKER_TO_COMPANY = {
+    'RELIANCE.NS': 'Reliance Industries',
+    'TCS.NS': 'TCS Tata Consultancy',
+    'HDFCBANK.NS': 'HDFC Bank',
+    ...
+}
+# Kyu? "RELIANCE.NS" search karne se news nahi milti.
+# "Reliance Industries stock NSE" se relevant results aate hain.
+```
+
+### Sentiment Decay — Missing Days ka Solution
+
+```
+Problem:
+  Monday: 3 headlines → avg sentiment = +0.7
+  Tuesday: 0 headlines → sentiment kya ho?
+  Wednesday: 0 headlines → ?
+  Thursday: 1 headline → sentiment = -0.3
+
+Option 1 (GALAT): Tuesday/Wednesday = 0.0 (neutral)
+  Problem: Monday ko positive tha, Tuesday achanak neutral? Misleading.
+
+Option 2 (SAHI): Decay factor = 0.95
+  Monday:    +0.700 (actual)
+  Tuesday:   +0.700 * 0.95 = +0.665 (decayed)
+  Wednesday: +0.665 * 0.95 = +0.632 (more decay)
+  Thursday:  -0.300 (new headline resets)
+
+Intuition: Agar koi news nahi hai, toh market sentiment slowly fade hota hai.
+95% decay = "yesterday ka mood aaj bhi 95% applicable hai"
+After ~60 days: 0.95^60 ≈ 0.046 → almost zero. Purani news irrelevant.
+```
+
+### Sentiment Matrix — Model Input
+
+```
+Shape: (n_stocks, n_timesteps)
+Example: (47, 2200)
+
+  matrix[0, 100] = Stock 0 ka Day 100 ka sentiment score
+  matrix[:, 100] = Day 100 pe saare stocks ka sentiment
+
+Yeh feature tensor ke saath combine hoga:
+  features:  (47, 2200, 21)  ← technical indicators
+  sentiment: (47, 2200)       ← sentiment scores
+  Combined:  (47, 2200, 22)  ← 21 indicators + 1 sentiment = 22 features per stock per day
+
+T-GAT aur RL agent ko dono milenge.
+```
+
+### SSL/Proxy Fix — College Network Challenge
+
+```
+Problem: College/corporate network ka proxy SSL certificates intercept karta hai.
+  HuggingFace se model download → proxy ne connection todha → 0-byte file saved → torch.load fail
+
+Solution:
+  1. Manually download: requests.get(url, verify=False) se 417MB model saved to data/finbert_local/
+  2. Code auto-detects: data/finbert_local/config.json exists? → load local. Nahi? → try HuggingFace Hub.
+  3. torch.load patch: torch 2.5.1 default weights_only=True breaks with .bin files → patched to False.
+
+Same SSL issue yfinance mein bhi tha — curl_cffi se fix kiya (Phase 1).
+```
+
+### FP16 Memory Optimization
+
+```
+FinBERT = BERT-base = 110M parameters
+  FP32: ~440 MB VRAM
+  FP16: ~220 MB VRAM  ← We use this
+
+model = model.half()  # FP32 → FP16
+
+Kyu? RTX 3050 = 4GB VRAM. FinBERT + T-GAT + RL agent sab load karne hain.
+Har jagah FP16 use karke VRAM bachao.
+
+CPU pe testing: FP32 use hota hai (CPU pe FP16 slower hai).
+```
+
+### SQLite Cache — Avoid Re-computation
+
+```python
+# Schema:
+sentiment_scores (ticker, date, headline, score, positive, negative, neutral)
+daily_sentiment  (ticker, date, avg_score, num_headlines)
+
+# Kyu?
+# 50 stocks × 15 headlines = 750 FinBERT predictions
+# ~2 seconds per prediction = 25 minutes
+# Cache mein hai? → Instant lookup. Nahi hai? → Predict + cache.
+# Next run mein same headlines skip ho jayenge.
+```
+
+### Tests: 19/19 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T3.1 | Model loads | FinBERT CPU pe load hota hai, error nahi |
+| T3.2 | 3 labels | Output 3 classes: positive, negative, neutral |
+| T3.3 | Positive text | "Record profits" → positive score (>0) |
+| T3.4 | Negative text | "Stock crashes, massive losses" → negative score (<0) |
+| T3.5 | Neutral text | "AGM held on Monday" → near-zero score |
+| T3.6 | Score range | Sab scores [-1, +1], probs sum to 1.0 |
+| T3.7 | Batch count | 3 inputs → 3 outputs |
+| T3.8 | Batch = individual | Batch results match one-by-one predictions |
+| T3.9 | Aggregation | 2 headlines → correct avg + count |
+| T3.10 | Decay fills gaps | Missing days filled with 0.95 decay |
+| T3.11 | Headline resets | New headline replaces decayed value |
+| T3.12 | Matrix shape | (n_stocks, n_timesteps) float32 |
+| E3.1 | Empty text | "" → neutral 0.0 |
+| E3.2 | Short text | "Hi" → neutral 0.0 |
+| E3.3 | Decay → 0 | After 100 days without news → near-zero |
+| E3.4 | Single headline | Single headline aggregation works |
+| T3.13 | Company lookup | RELIANCE.NS → "Reliance Industries" |
+| T3.14 | Unknown ticker | UNKNOWN.NS → "UNKNOWN" (graceful fallback) |
+| T3.15 | DB init | SQLite database creates without error |
+
+### File Flow (Updated)
+
+```
+stocks.py (NIFTY 50 list)
+    |
+    v
+download.py (yfinance se download)
+    |
+    v
+data/*.csv (per stock raw CSV files)
+    |
+    v
+quality.py (check + clean)
+    |
+    v
+features.py (21 indicators + z-score)
+    |
+    v
+Feature Tensor (47, ~2200, 21) float32
+    |                                    news_fetcher.py (Google News RSS)
+    |                                         |
+    |                                         v
+    |                                    finbert.py (sentiment scoring)
+    |                                         |
+    |                                         v
+    |                                    Sentiment Matrix (47, ~2200) float32
+    |                                         |
+    +--------------------+--------------------+
+                         |
+                         v
+              Combined Input (47, ~2200, 22)
+                         |
+                         v
+              Phase 4: Graph Construction (next)
+```
+
+---
+
+> **Next: Phase 4 — Graph Construction. Sector edges + supply chain edges + dynamic correlation edges → PyG Data object for T-GAT.**
