@@ -11,28 +11,13 @@ build/
 venv/
 .venv/
 
-# Data (large files)
-data/*.csv
-data/**/*.csv
-data/graphs/*.pt
-data/sentiment.db
+# FinBERT model (417MB — too large for GitHub, download locally)
 data/finbert_local/
-data/features/
-data/*.bin
-data/*.pkl
 
 # Model checkpoints (large files)
-models/
-*.pt
-*.pth
-*.ckpt
-*.bin
-
-# Logs
-logs/
-
-# Pytest cache
-.pytest_cache/
+models/*.pt
+models/*.pth
+models/*.ckpt
 
 # Experiments
 experiments/
@@ -58,3 +43,6 @@ wandb/
 
 # Docker volumes
 pgdata/
+
+# Pytest cache
+.pytest_cache/

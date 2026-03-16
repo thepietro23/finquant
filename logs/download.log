@@ -1,0 +1,198 @@
+2026-03-07 18:37:15,906 [download] WARNING: TCS.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:37:17,004 [download] WARNING: TCS.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:37:19,060 [download] WARNING: TCS.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:37:23,061 [download] ERROR: TCS.NS: all 3 attempts failed
+2026-03-07 18:37:23,143 [download] WARNING: INFY.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:37:24,211 [download] WARNING: INFY.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:37:26,323 [download] WARNING: INFY.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:37:30,324 [download] ERROR: INFY.NS: all 3 attempts failed
+2026-03-07 18:37:30,408 [download] WARNING: HCLTECH.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:37:31,511 [download] WARNING: HCLTECH.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:37:33,610 [download] WARNING: HCLTECH.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:37:37,611 [download] ERROR: HCLTECH.NS: all 3 attempts failed
+2026-03-07 18:37:37,737 [download] WARNING: WIPRO.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:37:38,849 [download] WARNING: WIPRO.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:37:40,948 [download] WARNING: WIPRO.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:37:44,950 [download] ERROR: WIPRO.NS: all 3 attempts failed
+2026-03-07 18:37:45,048 [download] WARNING: TECHM.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:37:46,156 [download] WARNING: TECHM.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:37:48,277 [download] WARNING: TECHM.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:37:52,278 [download] ERROR: TECHM.NS: all 3 attempts failed
+2026-03-07 18:37:52,401 [download] WARNING: HDFCBANK.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:37:53,528 [download] WARNING: HDFCBANK.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:37:55,667 [download] WARNING: HDFCBANK.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:37:59,668 [download] ERROR: HDFCBANK.NS: all 3 attempts failed
+2026-03-07 18:37:59,783 [download] WARNING: ICICIBANK.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:00,886 [download] WARNING: ICICIBANK.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:02,985 [download] WARNING: ICICIBANK.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:06,986 [download] ERROR: ICICIBANK.NS: all 3 attempts failed
+2026-03-07 18:38:07,084 [download] WARNING: KOTAKBANK.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:08,268 [download] WARNING: KOTAKBANK.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:10,371 [download] WARNING: KOTAKBANK.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:14,372 [download] ERROR: KOTAKBANK.NS: all 3 attempts failed
+2026-03-07 18:38:14,479 [download] WARNING: SBIN.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:15,621 [download] WARNING: SBIN.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:17,729 [download] WARNING: SBIN.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:21,730 [download] ERROR: SBIN.NS: all 3 attempts failed
+2026-03-07 18:38:21,844 [download] WARNING: AXISBANK.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:22,936 [download] WARNING: AXISBANK.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:25,138 [download] WARNING: AXISBANK.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:29,139 [download] ERROR: AXISBANK.NS: all 3 attempts failed
+2026-03-07 18:38:29,239 [download] WARNING: INDUSINDBK.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:30,357 [download] WARNING: INDUSINDBK.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:32,478 [download] WARNING: INDUSINDBK.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:36,479 [download] ERROR: INDUSINDBK.NS: all 3 attempts failed
+2026-03-07 18:38:36,588 [download] WARNING: RELIANCE.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:37,712 [download] WARNING: RELIANCE.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:39,814 [download] WARNING: RELIANCE.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:43,816 [download] ERROR: RELIANCE.NS: all 3 attempts failed
+2026-03-07 18:38:43,934 [download] WARNING: ONGC.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:45,052 [download] WARNING: ONGC.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:47,148 [download] WARNING: ONGC.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:51,148 [download] ERROR: ONGC.NS: all 3 attempts failed
+2026-03-07 18:38:51,238 [download] WARNING: NTPC.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:52,394 [download] WARNING: NTPC.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:38:54,561 [download] WARNING: NTPC.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:38:58,562 [download] ERROR: NTPC.NS: all 3 attempts failed
+2026-03-07 18:38:58,870 [download] WARNING: POWERGRID.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:38:59,958 [download] WARNING: POWERGRID.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:02,066 [download] WARNING: POWERGRID.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:06,067 [download] ERROR: POWERGRID.NS: all 3 attempts failed
+2026-03-07 18:39:06,163 [download] WARNING: MARUTI.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:07,282 [download] WARNING: MARUTI.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:09,377 [download] WARNING: MARUTI.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:13,379 [download] ERROR: MARUTI.NS: all 3 attempts failed
+2026-03-07 18:39:13,466 [download] WARNING: M&M.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:14,580 [download] WARNING: M&M.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:16,668 [download] WARNING: M&M.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:20,669 [download] ERROR: M&M.NS: all 3 attempts failed
+2026-03-07 18:39:20,777 [download] WARNING: TATAMOTORS.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:21,869 [download] WARNING: TATAMOTORS.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:23,965 [download] WARNING: TATAMOTORS.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:27,966 [download] ERROR: TATAMOTORS.NS: all 3 attempts failed
+2026-03-07 18:39:28,201 [download] WARNING: BAJAJ-AUTO.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:29,304 [download] WARNING: BAJAJ-AUTO.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:31,407 [download] WARNING: BAJAJ-AUTO.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:35,408 [download] ERROR: BAJAJ-AUTO.NS: all 3 attempts failed
+2026-03-07 18:39:35,504 [download] WARNING: HINDUNILVR.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:36,596 [download] WARNING: HINDUNILVR.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:38,683 [download] WARNING: HINDUNILVR.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:42,684 [download] ERROR: HINDUNILVR.NS: all 3 attempts failed
+2026-03-07 18:39:42,823 [download] WARNING: ITC.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:43,938 [download] WARNING: ITC.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:46,038 [download] WARNING: ITC.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:50,039 [download] ERROR: ITC.NS: all 3 attempts failed
+2026-03-07 18:39:50,137 [download] WARNING: NESTLEIND.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:51,228 [download] WARNING: NESTLEIND.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:39:53,315 [download] WARNING: NESTLEIND.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:39:57,316 [download] ERROR: NESTLEIND.NS: all 3 attempts failed
+2026-03-07 18:39:57,474 [download] WARNING: BRITANNIA.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:39:58,586 [download] WARNING: BRITANNIA.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:00,672 [download] WARNING: BRITANNIA.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:04,673 [download] ERROR: BRITANNIA.NS: all 3 attempts failed
+2026-03-07 18:40:05,109 [download] WARNING: SUNPHARMA.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:06,218 [download] WARNING: SUNPHARMA.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:08,316 [download] WARNING: SUNPHARMA.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:12,318 [download] ERROR: SUNPHARMA.NS: all 3 attempts failed
+2026-03-07 18:40:12,435 [download] WARNING: DRREDDY.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:13,546 [download] WARNING: DRREDDY.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:15,636 [download] WARNING: DRREDDY.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:19,637 [download] ERROR: DRREDDY.NS: all 3 attempts failed
+2026-03-07 18:40:19,738 [download] WARNING: CIPLA.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:20,855 [download] WARNING: CIPLA.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:22,947 [download] WARNING: CIPLA.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:26,948 [download] ERROR: CIPLA.NS: all 3 attempts failed
+2026-03-07 18:40:27,045 [download] WARNING: DIVISLAB.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:28,192 [download] WARNING: DIVISLAB.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:30,792 [download] WARNING: DIVISLAB.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:34,792 [download] ERROR: DIVISLAB.NS: all 3 attempts failed
+2026-03-07 18:40:35,334 [download] WARNING: TATASTEEL.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:36,952 [download] WARNING: TATASTEEL.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:39,532 [download] WARNING: TATASTEEL.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:43,533 [download] ERROR: TATASTEEL.NS: all 3 attempts failed
+2026-03-07 18:40:44,125 [download] WARNING: HINDALCO.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:45,686 [download] WARNING: HINDALCO.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:48,237 [download] WARNING: HINDALCO.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:40:52,238 [download] ERROR: HINDALCO.NS: all 3 attempts failed
+2026-03-07 18:40:52,795 [download] WARNING: JSWSTEEL.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:40:54,423 [download] WARNING: JSWSTEEL.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:40:57,041 [download] WARNING: JSWSTEEL.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:01,041 [download] ERROR: JSWSTEEL.NS: all 3 attempts failed
+2026-03-07 18:41:01,633 [download] WARNING: ULTRACEMCO.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:03,223 [download] WARNING: ULTRACEMCO.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:05,788 [download] WARNING: ULTRACEMCO.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:09,789 [download] ERROR: ULTRACEMCO.NS: all 3 attempts failed
+2026-03-07 18:41:10,365 [download] WARNING: GRASIM.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:11,973 [download] WARNING: GRASIM.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:14,542 [download] WARNING: GRASIM.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:18,543 [download] ERROR: GRASIM.NS: all 3 attempts failed
+2026-03-07 18:41:19,100 [download] WARNING: LT.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:20,675 [download] WARNING: LT.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:23,282 [download] WARNING: LT.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:27,283 [download] ERROR: LT.NS: all 3 attempts failed
+2026-03-07 18:41:27,906 [download] WARNING: BHARTIARTL.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:29,481 [download] WARNING: BHARTIARTL.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:31,721 [download] WARNING: BHARTIARTL.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:35,722 [download] ERROR: BHARTIARTL.NS: all 3 attempts failed
+2026-03-07 18:41:35,845 [download] WARNING: BAJFINANCE.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:36,935 [download] WARNING: BAJFINANCE.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:39,033 [download] WARNING: BAJFINANCE.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:43,035 [download] ERROR: BAJFINANCE.NS: all 3 attempts failed
+2026-03-07 18:41:43,115 [download] WARNING: BAJAJFINSV.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:44,199 [download] WARNING: BAJAJFINSV.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:46,293 [download] WARNING: BAJAJFINSV.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:50,295 [download] ERROR: BAJAJFINSV.NS: all 3 attempts failed
+2026-03-07 18:41:50,453 [download] WARNING: HDFCLIFE.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:51,576 [download] WARNING: HDFCLIFE.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:41:53,658 [download] WARNING: HDFCLIFE.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:41:57,659 [download] ERROR: HDFCLIFE.NS: all 3 attempts failed
+2026-03-07 18:41:57,738 [download] WARNING: SBILIFE.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:41:58,867 [download] WARNING: SBILIFE.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:00,965 [download] WARNING: SBILIFE.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:04,967 [download] ERROR: SBILIFE.NS: all 3 attempts failed
+2026-03-07 18:42:05,038 [download] WARNING: TITAN.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:06,177 [download] WARNING: TITAN.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:08,286 [download] WARNING: TITAN.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:12,287 [download] ERROR: TITAN.NS: all 3 attempts failed
+2026-03-07 18:42:12,394 [download] WARNING: ASIANPAINT.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:13,482 [download] WARNING: ASIANPAINT.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:15,601 [download] WARNING: ASIANPAINT.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:19,602 [download] ERROR: ASIANPAINT.NS: all 3 attempts failed
+2026-03-07 18:42:19,710 [download] WARNING: ADANIENT.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:20,800 [download] WARNING: ADANIENT.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:22,917 [download] WARNING: ADANIENT.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:26,917 [download] ERROR: ADANIENT.NS: all 3 attempts failed
+2026-03-07 18:42:27,082 [download] WARNING: ADANIPORTS.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:28,164 [download] WARNING: ADANIPORTS.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:30,255 [download] WARNING: ADANIPORTS.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:34,256 [download] ERROR: ADANIPORTS.NS: all 3 attempts failed
+2026-03-07 18:42:34,333 [download] WARNING: HEROMOTOCO.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:35,463 [download] WARNING: HEROMOTOCO.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:37,567 [download] WARNING: HEROMOTOCO.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:41,568 [download] ERROR: HEROMOTOCO.NS: all 3 attempts failed
+2026-03-07 18:42:41,669 [download] WARNING: EICHERMOT.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:42,804 [download] WARNING: EICHERMOT.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:44,890 [download] WARNING: EICHERMOT.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:48,891 [download] ERROR: EICHERMOT.NS: all 3 attempts failed
+2026-03-07 18:42:49,027 [download] WARNING: APOLLOHOSP.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:50,131 [download] WARNING: APOLLOHOSP.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:52,216 [download] WARNING: APOLLOHOSP.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:42:56,217 [download] ERROR: APOLLOHOSP.NS: all 3 attempts failed
+2026-03-07 18:42:56,218 [download] INFO: Downloading NIFTY 50 Index (^NSEI)...
+2026-03-07 18:42:56,340 [download] WARNING: ^NSEI: empty DataFrame returned (attempt 1)
+2026-03-07 18:42:57,460 [download] WARNING: ^NSEI: empty DataFrame returned (attempt 2)
+2026-03-07 18:42:59,578 [download] WARNING: ^NSEI: empty DataFrame returned (attempt 3)
+2026-03-07 18:43:03,579 [download] ERROR: ^NSEI: all 3 attempts failed
+2026-03-07 18:43:03,579 [download] ERROR: NIFTY 50 Index download failed!
+2026-03-07 18:43:03,579 [download] INFO: Download complete: 0 success, 45 failed
+2026-03-07 18:43:03,579 [download] WARNING: Failed tickers: ['TCS.NS', 'INFY.NS', 'HCLTECH.NS', 'WIPRO.NS', 'TECHM.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'KOTAKBANK.NS', 'SBIN.NS', 'AXISBANK.NS', 'INDUSINDBK.NS', 'RELIANCE.NS', 'ONGC.NS', 'NTPC.NS', 'POWERGRID.NS', 'MARUTI.NS', 'M&M.NS', 'TATAMOTORS.NS', 'BAJAJ-AUTO.NS', 'HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'SUNPHARMA.NS', 'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'TATASTEEL.NS', 'HINDALCO.NS', 'JSWSTEEL.NS', 'ULTRACEMCO.NS', 'GRASIM.NS', 'LT.NS', 'BHARTIARTL.NS', 'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'TITAN.NS', 'ASIANPAINT.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'HEROMOTOCO.NS', 'EICHERMOT.NS', 'APOLLOHOSP.NS']
+2026-03-07 18:47:34,982 [download] WARNING: RELIANCE.NS: empty DataFrame returned (attempt 1)
+2026-03-07 18:47:37,137 [download] WARNING: RELIANCE.NS: empty DataFrame returned (attempt 2)
+2026-03-07 18:47:40,808 [download] WARNING: RELIANCE.NS: empty DataFrame returned (attempt 3)
+2026-03-07 18:47:44,811 [download] ERROR: RELIANCE.NS: all 3 attempts failed
+2026-03-07 18:48:40,922 [download] WARNING: RELIANCE.NS: empty/failed (attempt 1/5). Waiting 1s
+2026-03-07 18:48:42,197 [download] WARNING: RELIANCE.NS: empty/failed (attempt 2/5). Waiting 3s
+2026-03-07 18:48:45,653 [download] WARNING: RELIANCE.NS: empty/failed (attempt 3/5). Waiting 9s
+2026-03-07 18:48:55,051 [download] WARNING: RELIANCE.NS: empty/failed (attempt 4/5). Waiting 27s
+2026-03-07 18:49:22,416 [download] WARNING: RELIANCE.NS: empty/failed (attempt 5/5). Waiting 60s
+2026-03-07 19:04:28,277 [download] ERROR: RELIANCE.NS: all 5 attempts failed
