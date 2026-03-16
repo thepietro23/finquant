@@ -16,15 +16,23 @@ data/*.csv
 data/**/*.csv
 data/graphs/*.pt
 data/sentiment.db
+data/finbert_local/
+data/features/
+data/*.bin
+data/*.pkl
 
 # Model checkpoints (large files)
-models/*.pt
-models/*.pth
-models/*.ckpt
-models/**/*.pt
+models/
+*.pt
+*.pth
+*.ckpt
+*.bin
 
 # Logs
-logs/*.log
+logs/
+
+# Pytest cache
+.pytest_cache/
 
 # Experiments
 experiments/
