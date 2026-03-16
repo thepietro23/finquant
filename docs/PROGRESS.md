@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-16
-> **Current Phase:** Phase 4 (Graph Construction) — ✅ DONE
-> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20) = 87/87 tests GREEN
+> **Current Phase:** Phase 5 (T-GAT Model) — ✅ DONE
+> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20), Phase 5 ✅ (19/19) = 106/106 tests GREEN
 
 ---
 
@@ -15,7 +15,7 @@
 | 2 | Feature Engineering | ✅ DONE | D3-D4 | 21 technical indicators + z-score normalization |
 | 3 | FinBERT Sentiment | ✅ DONE | D5-D6 | FinBERT + news fetcher + sentiment matrix |
 | 4 | Graph Construction | ✅ DONE | D6-D7 | Correlation + sector + supply chain edges |
-| 5 | T-GAT Model | NOT STARTED | D8-D10 | Temporal Graph Attention Network |
+| 5 | T-GAT Model | ✅ DONE | D8-D10 | Temporal Graph Attention Network |
 | 6 | RL Environment | NOT STARTED | D10-D12 | Gym env for portfolio management |
 | 7 | Deep RL Agent | NOT STARTED | D12-D17 | PPO + SAC training |
 | 8-9 | TimeGAN + Stress | NOT STARTED | D18-D24 | Synthetic data + stress testing |
@@ -238,7 +238,42 @@ Phase 4: Graph construction — 3 edge types + PyG Data (2026-03-16)
 
 ---
 
-## PHASES 5-15: Upcoming (Brief)
+## PHASE 5: T-GAT Model — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/models/tgat.py` | T-GAT: Multi-relational GAT + GRU temporal encoder | ~230 | ✅ |
+| `tests/test_tgat.py` | 19 tests (15 unit + 4 edge cases) | ~280 | ✅ 19/19 PASS |
+
+### Architecture
+```
+Input (n_stocks, 21 features)
+  → Linear Projection (21 → 64)
+  → RelationalGATLayer × 2 (3 edge types, 4 heads each, residual + LayerNorm)
+  → GRU Temporal Encoder (sequence of graph snapshots → temporal embedding)
+  → Output Projection (64 → 64)
+Output: (n_stocks, 64) stock embeddings
+```
+
+### Key Decisions
+1. **Multi-relational GAT** — Separate GATConv per edge type (sector/supply/correlation). Each learns different attention patterns. Weighted aggregation with learnable relation importance.
+2. **Residual connections** — Skip connections around each GAT layer. Prevents gradient vanishing in deeper networks. LayerNorm for stable training.
+3. **GRU (not LSTM)** — GRU has fewer parameters than LSTM (2 gates vs 3), similar performance. Better for 4GB VRAM constraint.
+4. **Mixed precision via autocast** — LayerNorm doesn't support pure FP16. Using `torch.cuda.amp.autocast()` for proper mixed precision.
+5. **56K parameters, 0.22 MB** — Lightweight model. FP16 = 0.11 MB. Plenty of room on 4GB VRAM.
+
+### Tests: 19/19 PASSING ✅
+- Model init (4): creates, config from YAML, custom config, expected components
+- Forward pass (4): sequence shape, single shape, finite embeddings ×2
+- Gradients (2): flow check, loss decrease
+- Relational GAT (2): missing edge type, all 3 types
+- Model size (3): <1M params, <10MB, FP16 on CUDA
+- Edge cases (4): no edges, single node, 20-step sequence, empty raises error
+
+---
+
+## PHASES 6-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
@@ -266,7 +301,7 @@ Phase 4: Graph construction — 3 edge types + PyG Data (2026-03-16)
 | 2 | 14/14 | 4/4 | - | ✅ PASS |
 | 3 | 15/15 | 4/4 | - | ✅ PASS |
 | 4 | 16/16 | 4/4 | Integration #1 | ✅ PASS |
-| 5 | -/8 | -/3 | - | - |
+| 5 | 15/15 | 4/4 | - | ✅ PASS |
 | 6 | -/10 | -/6 | - | - |
 | 7 | -/8 | -/4 | - | - |
 | 8-9 | -/13 | -/7 | Integration #2 | - |
@@ -275,7 +310,7 @@ Phase 4: Graph construction — 3 edge types + PyG Data (2026-03-16)
 | 12 | -/6 | -/3 | - | - |
 | 13 | -/10 | -/5 | Integration #3 | - |
 | 14 | - | - | - | - |
-| **Total** | **75/124** | **12+/54** | **0/11** | **87/189** |
+| **Total** | **90/124** | **16+/54** | **0/11** | **106/189** |
 
 ---
 

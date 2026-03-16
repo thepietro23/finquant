@@ -919,4 +919,234 @@ Feature Tensor (47, ~2200, 21) float32
 
 ---
 
-> **Next: Phase 5 — T-GAT (Temporal Graph Attention Network). Graph + features → stock embeddings. Attention mechanism = important neighbors get more weight.**
+---
+
+## PHASE 5: T-GAT (Temporal Graph Attention Network)
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/models/tgat.py` | T-GAT model — multi-relational GAT + GRU temporal encoder | Graph + features leke har stock ka "embedding" banata hai. Yeh embedding stock ki apni info + neighborhood ki info encode karta hai. RL agent ko yeh milega. |
+| `tests/test_tgat.py` | 19 tests — init, forward pass, gradients, FP16, edge cases | Model sahi shape output karta hai? Gradients flow karte hain? 4GB VRAM mein fit hoga? |
+
+### GNN + Attention — Simple Analogy
+
+```
+Sooch: Tu exam mein kisi topic pe stuck hai.
+  - Option 1: Sirf apna notes padh (isolation — no graph)
+  - Option 2: Sab 47 classmates se puch (fully connected — too noisy)
+  - Option 3: SMART approach:
+    a. Sirf relevant dost se puch (graph edges = who to ask)
+    b. Kisi ka answer zyada trust kar, kisi ka kam (attention = how much to trust)
+    c. Alag alag logon se alag cheezein seekh:
+       - Same class ke bande (sector peers)
+       - Senior jo similar subject padhta tha (supply chain)
+       - Jisne same galti ki thi past mein (correlation)
+
+T-GAT = Option 3 for stocks.
+  Each stock "asks" its neighbors for information.
+  Attention mechanism decides whose info matters more.
+  3 edge types = 3 different kinds of relationships.
+```
+
+### Architecture — Step by Step
+
+```
+1. INPUT PROJECTION
+   Raw features (21 indicators) → Hidden representation (64 dimensions)
+
+   Kyu? 21 features ka space mein attention compute karna inefficient.
+   Project to 64-dim → richer, learned representation.
+   Like translating Hindi notes to a common language sab samajh sakein.
+
+2. RELATIONAL GAT LAYER × 2
+   Har stock apne neighbors se info collect karta hai.
+
+   Key insight: 3 edge types = 3 alag GAT convolutions.
+
+   Sector GAT:
+     HDFCBANK "asks" ICICIBANK, SBIN, KOTAKBANK
+     Attention: ICICIBANK ko 0.4 weight, SBIN ko 0.35, KOTAKBANK ko 0.25
+     → "Banking sector ka consensus kya bol raha hai?"
+
+   Supply Chain GAT:
+     MARUTI "asks" TATASTEEL (steel supplier)
+     → "Mera raw material supplier kaisa perform kar raha hai?"
+
+   Correlation GAT:
+     Stock A "asks" Stock B (corr > 0.6)
+     → "Jo mere saath move karte hain, woh kya kar rahe hain?"
+
+   Final: Weighted sum of all 3 → combined neighborhood info.
+   Weights are LEARNABLE (model decides sector vs supply chain kya zyada important).
+
+3. MULTI-HEAD ATTENTION (4 heads)
+   Ek attention head se ek perspective milta hai.
+   4 heads = 4 different perspectives simultaneously.
+
+   Head 1: "Momentum similarity" dekhta hai
+   Head 2: "Volatility pattern" dekhta hai
+   Head 3: "Volume correlation" dekhta hai
+   Head 4: "Return pattern" dekhta hai
+
+   (Ye exact kya dekhte hain — model khud seekhta hai training mein)
+
+4. RESIDUAL + LAYER NORM
+   residual: output = gat_output + original_input
+   norm: stabilize values to prevent explosion
+
+   Kyu residual? Agar GAT layer kuch useful nahi seekha,
+   toh at least original info preserve rahegi.
+   Like: "Agar neighbors ki advice bekar hai, toh apna notes hi use kar."
+
+5. GRU TEMPORAL ENCODER
+   Ab tak: Single day ka graph process hua.
+   Par stocks ka behavior time ke saath change hota hai!
+
+   GRU = Gated Recurrent Unit (simpler version of LSTM)
+   Input: Sequence of 5-20 daily graph embeddings
+   Output: Temporal-aware embedding that captures TREND
+
+   Example:
+     Day 1: RELIANCE embedding = [bullish signals from banking neighbors]
+     Day 2: RELIANCE embedding = [mixed signals]
+     Day 3: RELIANCE embedding = [bearish signals]
+     GRU output: "Trend is shifting from bullish to bearish over last 3 days"
+
+   Kyu GRU instead of LSTM?
+     GRU: 2 gates (reset + update) — fewer parameters
+     LSTM: 3 gates (forget + input + output) — more parameters
+     Similar performance, but GRU = less VRAM on our 4GB GPU.
+
+6. OUTPUT PROJECTION
+   Hidden (64) → Output embedding (64)
+
+   Final per-stock embedding:
+   - Encodes its own features (21 indicators)
+   - Encodes neighbor information (via attention)
+   - Encodes temporal trend (via GRU)
+
+   Yeh 64-dim vector RL agent ko input jayega as "stock state".
+```
+
+### Attention Weights — Interpretability
+
+```python
+# T-GAT ka bonus: attention weights extract kar sakte hain!
+alpha = model.get_attention_weights(graph, layer_idx=0, relation_idx=0)
+
+# alpha[i] = HDFCBANK ne ICICIBANK ko kitna attention diya
+# High alpha = "Yeh neighbor zyada important hai mere liye"
+
+# Thesis mein: attention heatmap bana sakte hain
+# "RELIANCE sector attention: IT peers ko 60%, Banking peers ko 40%"
+# → Interpretable GNN = examiner ko samjha sakte
+```
+
+### Model Size — 4GB VRAM Constraint
+
+```
+Parameters: 56,518 (~57K)
+FP32 size:  0.22 MB
+FP16 size:  0.11 MB (with autocast)
+
+For comparison:
+  FinBERT: 110M parameters, ~220 MB (FP16)
+  Our T-GAT: 57K parameters, 0.11 MB
+
+T-GAT bahut lightweight hai because:
+  - 47 stocks sirf (not millions of nodes like social graphs)
+  - 2 GAT layers sufficient (shallow enough for small graph)
+  - 64 hidden dim (not 256 or 512)
+
+Budget on 4GB VRAM:
+  T-GAT:    ~0.1 MB
+  FinBERT:  ~220 MB  (inference only, can unload)
+  RL Agent: ~50 MB
+  Buffers:  ~500 MB
+  Free:     ~3.2 GB → comfortable!
+```
+
+### Mixed Precision — Why autocast not .half()
+
+```
+Problem: model.half() converts EVERYTHING to FP16.
+  But LayerNorm NEEDS FP32 for numerical stability.
+  FP16 LayerNorm → RuntimeError on both CPU and CUDA.
+
+Solution: torch.cuda.amp.autocast()
+  Smart mixed precision:
+  - MatMul, Conv → FP16 (fast, doesn't need precision)
+  - LayerNorm, Softmax → FP32 (needs precision)
+  - Automatic! PyTorch handles it.
+
+In training:
+  scaler = GradScaler()
+  with autocast():
+      loss = model(...)
+  scaler.scale(loss).backward()
+  scaler.step(optimizer)
+  scaler.update()
+```
+
+### Tests: 19/19 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T5.1 | Model creates | TGAT() no error |
+| T5.2 | Config from YAML | hidden=64, heads=4, layers=2 from base.yaml |
+| T5.3 | Custom config | Manual overrides work |
+| T5.4 | Components exist | input_proj, gat_layers, gru, output_proj |
+| T5.5 | Sequence shape | (10, 64) output from 5-step sequence of 10 stocks |
+| T5.6 | Single shape | (10, 64) from single graph |
+| T5.7 | Finite embeddings | No NaN/Inf in sequence output |
+| T5.8 | Finite single | No NaN/Inf in single output |
+| T5.9 | Gradients flow | Backprop works, parameters get gradients |
+| T5.10 | Loss decreases | One optim step reduces MSE loss |
+| T5.11 | Missing edge type | Only sector edges → no crash |
+| T5.12 | All 3 types | All edge types process correctly |
+| T5.13 | Param count | < 1M parameters |
+| T5.14 | Model size | < 10 MB |
+| T5.15 | FP16 CUDA | autocast works on GPU |
+| E5.1 | No edges | 0 edges → isolated node embeddings still work |
+| E5.2 | Single node | 1 stock → (1, 64) output |
+| E5.3 | Long sequence | 20 timesteps → no memory explosion |
+| E5.4 | Empty sequence | [] → raises ValueError |
+
+### File Flow (Updated)
+
+```
+stocks.py (NIFTY 50 list + sectors + supply chain)
+    |
+    v
+download.py → quality.py → features.py
+    |
+    v
+Feature Tensor (47, ~2200, 21)     Sentiment Matrix (47, ~2200)
+    |                                    |
+    +------------------------------------+
+    |
+    v
+builder.py (graph construction)
+    |
+    v
+PyG Data Objects (per day)
+[x=features, edge_index, edge_type]
+    |
+    v
+tgat.py (T-GAT model)              ← NEW
+    |
+    v
+Stock Embeddings (47, 64)
+[each stock: 64-dim vector encoding
+ own features + neighbor info + temporal trend]
+    |
+    v
+Phase 6: RL Environment (next)
+[embeddings → observation space → agent decides portfolio weights]
+```
+
+---
+
+> **Next: Phase 6 — RL Environment. Stock embeddings + sentiment → Gymnasium environment. Agent ko observation space milega (features + graph embeddings), action space (portfolio weights), reward (Sharpe-based).**

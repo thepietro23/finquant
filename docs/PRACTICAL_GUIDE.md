@@ -576,6 +576,147 @@ print(f'Edge type tensor: {edge_type.shape}')
 
 ---
 
+## Phase 5: T-GAT Model — Manual Testing
+
+### 1. Model Creation + Architecture
+```python
+python -c "
+from src.models.tgat import TGAT, count_parameters, get_model_size_mb
+
+model = TGAT(n_features=21)
+print('=== T-GAT Architecture ===')
+print(model)
+print()
+print(f'Parameters: {count_parameters(model):,}')
+print(f'Model size: {get_model_size_mb(model):.2f} MB (FP32)')
+print(f'FP16 size:  {get_model_size_mb(model)/2:.2f} MB')
+"
+```
+**Expected:** ~56K parameters, 0.22 MB, 2 GAT layers, 4 heads each.
+
+### 2. Single Graph Forward Pass
+```python
+python -c "
+import torch
+from torch_geometric.data import Data
+from src.models.tgat import TGAT
+
+model = TGAT(n_features=21)
+model.eval()
+
+# Fake graph: 10 stocks, 21 features, some edges
+x = torch.randn(10, 21)
+edge_index = torch.tensor([[0,1,2,3,4,5,1,0,3,2,5,4],
+                            [1,0,3,2,5,4,0,1,2,3,4,5]], dtype=torch.long)
+edge_type = torch.tensor([0,0,0,0,1,1,0,0,0,0,1,1], dtype=torch.long)
+data = Data(x=x, edge_index=edge_index, edge_type=edge_type)
+
+with torch.no_grad():
+    emb = model.forward_single(data)
+
+print(f'Input: {x.shape} (10 stocks, 21 features)')
+print(f'Output: {emb.shape} (10 stocks, 64 embedding dims)')
+print(f'Embedding sample (stock 0): {emb[0, :5].tolist()}')
+print(f'All finite: {torch.isfinite(emb).all()}')
+"
+```
+
+### 3. Graph Sequence (Temporal)
+```python
+python -c "
+import torch
+from torch_geometric.data import Data
+from src.models.tgat import TGAT
+
+model = TGAT(n_features=21)
+model.eval()
+
+# 5 timesteps, 10 stocks
+graphs = []
+for t in range(5):
+    x = torch.randn(10, 21)
+    ei = torch.tensor([[0,1,2,3],[1,0,3,2]], dtype=torch.long)
+    et = torch.tensor([0,0,1,1], dtype=torch.long)
+    graphs.append(Data(x=x, edge_index=ei, edge_type=et))
+
+with torch.no_grad():
+    emb, spatial = model(graphs)
+
+print(f'Sequence length: {len(graphs)} timesteps')
+print(f'Final embedding: {emb.shape} (stocks × output_dim)')
+print(f'All spatial: {spatial.shape} (stocks × timesteps × hidden_dim)')
+print(f'GRU captured temporal info: {emb.shape[1]} dims per stock')
+"
+```
+
+### 4. GPU + Mixed Precision Test
+```python
+python -c "
+import torch
+from torch_geometric.data import Data
+from src.models.tgat import TGAT
+
+if not torch.cuda.is_available():
+    print('No CUDA — skipping GPU test')
+else:
+    model = TGAT(n_features=21).cuda()
+    x = torch.randn(10, 21).cuda()
+    ei = torch.tensor([[0,1],[1,0]], dtype=torch.long).cuda()
+    et = torch.zeros(2, dtype=torch.long).cuda()
+    data = Data(x=x, edge_index=ei, edge_type=et)
+
+    # Mixed precision
+    with torch.no_grad(), torch.amp.autocast('cuda'):
+        emb = model.forward_single(data)
+
+    print(f'GPU output: {emb.shape}, dtype: {emb.dtype}')
+    print(f'GPU memory used: {torch.cuda.memory_allocated()/1024/1024:.1f} MB')
+    print(f'GPU memory reserved: {torch.cuda.memory_reserved()/1024/1024:.1f} MB')
+"
+```
+
+### 5. Training Sanity Check (1 step)
+```python
+python -c "
+import torch
+import torch.nn.functional as F
+from torch_geometric.data import Data
+from src.models.tgat import TGAT
+
+model = TGAT(n_features=21)
+model.train()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
+# Fake data
+graphs = []
+for t in range(3):
+    x = torch.randn(10, 21)
+    ei = torch.tensor([[0,1,2,3],[1,0,3,2]], dtype=torch.long)
+    et = torch.tensor([0,0,1,1], dtype=torch.long)
+    graphs.append(Data(x=x, edge_index=ei, edge_type=et))
+
+target = torch.zeros(10, 64)
+
+# Step 1
+emb, _ = model(graphs)
+loss1 = F.mse_loss(emb, target)
+loss1.backward()
+optimizer.step()
+optimizer.zero_grad()
+
+# Step 2
+emb, _ = model(graphs)
+loss2 = F.mse_loss(emb, target)
+
+print(f'Loss before: {loss1.item():.4f}')
+print(f'Loss after:  {loss2.item():.4f}')
+print(f'Decreased:   {loss2.item() < loss1.item()}')
+print('Training works!' if loss2.item() < loss1.item() else 'Check model')
+"
+```
+
+---
+
 ## Running Tests (Automated — Har Phase Ke Baad)
 
 ### Run All Tests
@@ -592,6 +733,7 @@ python -m pytest tests/test_data.py -v      # Phase 1 only
 python -m pytest tests/test_features.py -v  # Phase 2 only
 python -m pytest tests/test_sentiment.py -v # Phase 3 only
 python -m pytest tests/test_graph.py -v     # Phase 4 only
+python -m pytest tests/test_tgat.py -v     # Phase 5 only
 ```
 
 ### Run Single Test
@@ -656,6 +798,8 @@ fqn1/
 │   │   └── news_fetcher.py  # Google News RSS + SQLite cache
 │   ├── graph/
 │   │   └── builder.py       # 3 edge types + PyG Data objects
+│   ├── models/
+│   │   └── tgat.py          # T-GAT: multi-relational GAT + GRU
 │   ├── rl/                  # Phase 6-7: RL environment + agents
 │   ├── gan/                 # Phase 8-9: TimeGAN
 │   ├── nas/                 # Phase 10: DARTS
@@ -667,7 +811,8 @@ fqn1/
 │   ├── test_data.py         # 12 tests
 │   ├── test_features.py     # 18 tests
 │   ├── test_sentiment.py    # 19 tests
-│   └── test_graph.py        # 20 tests
+│   ├── test_graph.py        # 20 tests
+│   └── test_tgat.py         # 19 tests
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)

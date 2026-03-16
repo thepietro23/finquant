@@ -22,3 +22,7 @@
 2026-03-16 15:25:57,126 [features] INFO: Feature tensor: (2, 381, 21) (stocks=2, time=381, features=21)
 2026-03-16 15:25:57,151 [features] INFO: Feature tensor: (1, 381, 21) (stocks=1, time=381, features=21)
 2026-03-16 15:25:57,248 [features] INFO: Feature tensor: (1, 381, 21) (stocks=1, time=381, features=21)
+2026-03-16 15:47:05,699 [features] INFO: Feature tensor: (2, 381, 21) (stocks=2, time=381, features=21)
+2026-03-16 15:47:05,751 [features] INFO: Feature tensor: (2, 381, 21) (stocks=2, time=381, features=21)
+2026-03-16 15:47:05,776 [features] INFO: Feature tensor: (1, 381, 21) (stocks=1, time=381, features=21)
+2026-03-16 15:47:05,890 [features] INFO: Feature tensor: (1, 381, 21) (stocks=1, time=381, features=21)

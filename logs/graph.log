@@ -52,3 +52,30 @@
 2026-03-16 15:25:57,273 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
 2026-03-16 15:25:57,273 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
 2026-03-16 15:25:57,273 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,893 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,894 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,895 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,898 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,899 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,900 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,912 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,912 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,931 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,936 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,936 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,937 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,938 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,939 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,939 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,940 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,941 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,941 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,943 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,943 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,943 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,945 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,945 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,946 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
+2026-03-16 15:47:05,947 [graph] INFO: Sector edges: 82 pairs → 164 directed edges
+2026-03-16 15:47:05,947 [graph] INFO: Supply chain edges: 26 pairs → 52 directed edges
+2026-03-16 15:47:05,948 [graph] INFO: Static graph: 186 edges (sector=164, supply=22)
