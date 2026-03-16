@@ -1149,4 +1149,226 @@ Phase 6: RL Environment (next)
 
 ---
 
-> **Next: Phase 6 — RL Environment. Stock embeddings + sentiment → Gymnasium environment. Agent ko observation space milega (features + graph embeddings), action space (portfolio weights), reward (Sharpe-based).**
+---
+
+## PHASE 6: RL Environment (Portfolio Gym)
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/rl/environment.py` | Gymnasium-compatible portfolio management environment | RL agent ko ek "game" chahiye jismein woh practice kare. Environment = stock market simulator. Agent har din portfolio rebalance karta hai, returns earn karta hai, costs pay karta hai. |
+| `tests/test_env.py` | 23 tests covering init, step, constraints, edge cases | Observation sahi shape hai? Costs lag rahe hain? Stop loss kaam karta hai? Drawdown circuit breaker terminate karta hai? |
+
+### RL Environment — Simple Analogy
+
+```
+Sooch: Tu ek ice cream shop ka manager hai.
+  - OBSERVATION: Kitni ice cream hai (stock), kitne customers aa rahe hain (features),
+                 weather kaisa hai (sentiment), kitna paisa hai (portfolio value)
+  - ACTION: Kaunsi flavor kitni banana hai (portfolio weights)
+  - REWARD: Profit - waste cost (returns - transaction costs)
+  - CONSTRAINTS: Budget limit (max position), spoilage (stop loss)
+
+Stock market version:
+  - OBSERVATION: 47 stocks ke 21 features + portfolio state + sentiment
+  - ACTION: Kitna invest karna hai har stock mein (0-20% each)
+  - REWARD: Risk-adjusted return (Sharpe ratio based)
+  - CONSTRAINTS: Max 20%/stock, -5% stop loss, -15% max drawdown
+```
+
+### Observation Space — Agent Kya Dekhta Hai
+
+```
+Observation = [stock_features | portfolio_state | embeddings | sentiment]
+
+1. Stock Features (n_stocks × 21 = 987 values):
+   Har stock ke 21 technical indicators (Phase 2 se)
+   RSI, MACD, Bollinger, SMA, volatility, returns...
+
+2. Portfolio State (n_stocks + 2 values):
+   - Current weights: [0.15, 0.10, 0, 0.05, ...] (kitna invest hai)
+   - Cash ratio: 0.70 (70% cash mein hai)
+   - Normalized value: 1.05 (5% profit hua hai start se)
+
+3. T-GAT Embeddings (optional, n_stocks × 64):
+   Graph attention se aaye stock embeddings
+   "HDFCBANK ka neighborhood kya bol raha hai"
+
+4. Sentiment (optional, n_stocks):
+   FinBERT sentiment scores [-1, +1]
+   "RELIANCE ki news positive hai ya negative"
+
+Total: ~1050 values (without embeddings) → Agent ka "vision"
+```
+
+### Action Space — Agent Kya Karta Hai
+
+```
+Action: n_stocks continuous values [-1, +1]
+  ↓
+Softmax: convert to valid weights [0, 1] summing to 1
+  ↓
+Clip: max 20% per stock
+  ↓
+Final weights: [0.15, 0.10, 0.08, 0.20, 0.12, ...]
+  Cash = 1 - sum = remaining
+
+Example:
+  Agent output: [2.5, 1.0, -0.5, 3.0, 0.1]
+  After softmax: [0.30, 0.07, 0.01, 0.50, 0.03]
+  After clip(0.20): [0.20, 0.07, 0.01, 0.20, 0.03] → sum=0.51, cash=0.49
+
+Kyu softmax?
+  - Ensures all weights positive (can't short sell in our model)
+  - Sums to ~1 (all money allocated)
+  - Differentiable (PPO needs gradients)
+```
+
+### Reward Function — Agent Ko Kaise Grade Karte Hain
+
+```
+reward = sharpe_component - drawdown_penalty - turnover_penalty
+
+1. SHARPE COMPONENT (main reward):
+   Rolling 20-day Sharpe ratio = mean(returns) / std(returns) × sqrt(248)
+
+   Kyu Sharpe?
+   - Raw return reward galat hai: "15% return 50% risk ke saath" BAD
+   - Sharpe = risk-adjusted: "15% return 10% risk ke saath" GOOD
+   - Agent ko sikhata hai: "Kam risk mein zyada kamao"
+
+2. DRAWDOWN PENALTY:
+   penalty = |drawdown| × 0.1
+
+   Kyu?
+   - Agar portfolio peak se 10% gira, penalty = 0.01
+   - Agent ko sikhata hai: "Peak se mat girao, protect karo"
+
+3. TURNOVER PENALTY:
+   penalty = |weight_changes| × 0.01
+
+   Kyu?
+   - Har trade mein 0.15% cost lagta hai (STT + brokerage + slippage)
+   - Agar agent roz poora portfolio change kare = massive costs
+   - Penalty sikhata hai: "Zarurat ke bina mat badlo"
+```
+
+### Risk Constraints — India-Specific
+
+```
+1. MAX POSITION: 20% per stock
+   Kyu? SEBI mutual fund rules: max 10% per stock.
+   Hum 20% rakh rahe (slightly aggressive for RL flexibility).
+   Agar 50% ek stock mein daale aur woh crash kare = game over.
+
+2. STOP LOSS: -5% per stock per day
+   Kyu? NSE circuit limit 20% hai, par hum conservative hain.
+   Agar koi stock 5% gire ek din mein → forced exit.
+   "Cut your losses short, let profits run."
+
+3. MAX DRAWDOWN: -15% circuit breaker
+   Kyu? Agar total portfolio peak se 15% gir gaya → episode terminate.
+   Real world mein fund managers ko "max drawdown tolerance" hoti hai.
+   Investor ko promise: "Maximum 15% loss hoga."
+   Training mein: agent seekhta hai ki -15% se pehle risk reduce karo.
+
+4. TRANSACTION COSTS:
+   - 0.1% per trade (STT + brokerage)
+   - 0.05% slippage (market impact)
+   Total: 0.15% per unit turnover
+
+   Indian context: Zerodha pe intraday 0.03% + STT 0.025% + GST etc.
+   0.15% slightly higher = conservative estimate.
+```
+
+### Episode Structure
+
+```
+1. RESET:
+   - Random start date within training data (2016-2021)
+   - Initial: 10L cash, 0 positions, 0 history
+   - Returns observation + info
+
+2. LOOP (252 steps = 1 year):
+   For each trading day:
+     a. Agent sees observation → outputs action
+     b. Action → target weights (softmax + clip)
+     c. Calculate turnover + costs
+     d. Move to next day → stock returns
+     e. Update portfolio value
+     f. Check stop loss + drawdown
+     g. Calculate reward
+     h. Return (obs, reward, terminated, truncated, info)
+
+3. END:
+   - Truncated: 252 steps done (normal end)
+   - Terminated: drawdown > -15% (forced end)
+   - Summary: total return, Sharpe, max drawdown
+
+4. Random start kyu?
+   Agar hamesha 2016-Jan se start kare → agent 2016 ka pattern memorize karega.
+   Random start = generalize kare, kisi bhi market condition mein kaam kare.
+```
+
+### Tests: 23/23 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T6.1 | Env creates | PortfolioEnv() no error |
+| T6.2 | Obs space shape | n_stocks×21 + n_stocks + 2 |
+| T6.3 | Action space | (n_stocks,) continuous |
+| T6.4 | Initial state | 10L cash, 0 positions |
+| T6.5 | Reset tuple | (obs, info) returned |
+| T6.6 | Reset obs shape | matches observation_space |
+| T6.7 | Reset clears | After steps + reset → back to initial |
+| T6.8 | Reset deterministic | Same seed → same obs |
+| T6.9 | Step tuple | (obs, reward, term, trunc, info) |
+| T6.10 | Step obs shape | matches observation_space |
+| T6.11 | Value changes | Trading changes portfolio value |
+| T6.12 | Costs applied | Flat prices + trade → value decreases |
+| T6.13 | Info keys | portfolio_return, turnover, drawdown, etc. |
+| T6.14 | Max position | Weight capped at 20% |
+| T6.15 | Weights ≤ 1 | Sum never exceeds 1.0 |
+| T6.16 | Stop loss | -10% crash → position zeroed |
+| T6.17 | Drawdown terminates | -15% drawdown → terminated=True |
+| E6.1 | Zero action | No crash on zeros |
+| E6.2 | Single stock | 1 stock env works |
+| E6.3 | Truncation | Episode ends at episode_length |
+| E6.4 | Gym API | Has reset, step, spaces, metadata |
+| E6.5 | Summary | End-of-episode stats correct |
+| E6.6 | With embeddings | Optional T-GAT + sentiment inputs work |
+
+### File Flow (Updated)
+
+```
+stocks.py → download.py → quality.py → features.py
+    |
+    v
+Feature Tensor (47, ~2200, 21)     Sentiment Matrix (47, ~2200)
+    |                                    |
+    +------------------------------------+
+    |
+    v
+builder.py (graph construction) → PyG Data Objects
+    |
+    v
+tgat.py (T-GAT model) → Stock Embeddings (47, 64)
+    |
+    +-------- features ----+---- sentiment ---+
+    |                      |                  |
+    v                      v                  v
+environment.py (RL Gym Environment)               ← NEW
+    |
+    |  Observation: features + weights + cash + embeddings + sentiment
+    |  Action: target portfolio weights
+    |  Reward: Sharpe - drawdown_penalty - turnover_penalty
+    |
+    v
+Phase 7: Deep RL Agent (PPO/SAC) (next)
+[Agent interacts with environment, learns optimal portfolio strategy]
+```
+
+---
+
+> **Next: Phase 7 — Deep RL Agent. PPO (primary) + SAC (comparison). Agent environment mein train karega — 500K timesteps. Stable-Baselines3 use karenge.**

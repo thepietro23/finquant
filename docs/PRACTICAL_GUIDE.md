@@ -717,6 +717,98 @@ print('Training works!' if loss2.item() < loss1.item() else 'Check model')
 
 ---
 
+## Phase 6: RL Environment — Manual Testing
+
+### 1. Create and Explore Environment
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+
+# Synthetic data: 10 stocks, 500 days
+n_stocks, n_time, n_feat = 10, 500, 21
+np.random.seed(42)
+features = np.random.randn(n_stocks, n_time, n_feat).astype(np.float32)
+prices = 100 * np.cumprod(1 + np.random.randn(n_stocks, n_time) * 0.01, axis=1).astype(np.float32)
+
+env = PortfolioEnv(features, prices, episode_length=100)
+print('=== RL Environment ===')
+print(f'Observation space: {env.observation_space.shape}')
+print(f'Action space: {env.action_space.shape}')
+print(f'Stocks: {env.n_stocks}')
+print(f'Episode length: {env.episode_length}')
+print(f'Max position: {env.max_position}')
+print(f'Stop loss: {env.stop_loss}')
+print(f'Max drawdown: {env.max_drawdown}')
+"
+```
+
+### 2. Run a Full Episode
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+
+np.random.seed(42)
+n = 10
+features = np.random.randn(n, 500, 21).astype(np.float32)
+prices = 100 * np.cumprod(1 + np.random.randn(n, 500) * 0.01, axis=1).astype(np.float32)
+
+env = PortfolioEnv(features, prices, episode_length=50)
+obs, info = env.reset(seed=42)
+
+total_reward = 0
+for step in range(50):
+    if env.done:
+        break
+    action = env.action_space.sample()  # Random agent
+    obs, reward, term, trunc, info = env.step(action)
+    total_reward += reward
+
+summary = env.get_portfolio_summary()
+print('=== Episode Complete ===')
+print(f'Steps: {summary[\"n_steps\"]}')
+print(f'Total return: {summary[\"total_return\"]:.2%}')
+print(f'Sharpe ratio: {summary[\"sharpe\"]:.2f}')
+print(f'Max drawdown: {summary[\"max_drawdown\"]:.2%}')
+print(f'Final value: Rs {summary[\"final_value\"]:,.0f}')
+print(f'Total reward: {total_reward:.2f}')
+print(f'Positions at end: {info[\"n_positions\"]}')
+"
+```
+
+### 3. Constraint Demo (Stop Loss + Drawdown)
+```python
+python -c "
+import numpy as np
+from src.rl.environment import PortfolioEnv
+
+np.random.seed(42)
+n = 5
+features = np.random.randn(n, 300, 21).astype(np.float32)
+# Create crashing prices (-3% every day)
+prices = 100 * np.cumprod(1 + np.full((n, 300), -0.03), axis=1).astype(np.float32)
+
+env = PortfolioEnv(features, prices, episode_length=100)
+env.reset(seed=42)
+
+for step in range(50):
+    if env.done:
+        print(f'Episode ended at step {step}!')
+        break
+    action = np.ones(n, dtype=np.float32)  # Fully invested
+    obs, reward, term, trunc, info = env.step(action)
+    if step % 5 == 0:
+        print(f'Step {step}: value={info[\"portfolio_value\"]:,.0f}, dd={info[\"drawdown\"]:.1%}')
+
+if env.done:
+    print(f'Terminated: drawdown breached -15% limit')
+    print(f'Final value: Rs {env.portfolio_value:,.0f}')
+"
+```
+
+---
+
 ## Running Tests (Automated — Har Phase Ke Baad)
 
 ### Run All Tests
@@ -734,6 +826,7 @@ python -m pytest tests/test_features.py -v  # Phase 2 only
 python -m pytest tests/test_sentiment.py -v # Phase 3 only
 python -m pytest tests/test_graph.py -v     # Phase 4 only
 python -m pytest tests/test_tgat.py -v     # Phase 5 only
+python -m pytest tests/test_env.py -v      # Phase 6 only
 ```
 
 ### Run Single Test
@@ -800,6 +893,8 @@ fqn1/
 │   │   └── builder.py       # 3 edge types + PyG Data objects
 │   ├── models/
 │   │   └── tgat.py          # T-GAT: multi-relational GAT + GRU
+│   ├── rl/
+│   │   └── environment.py   # Gymnasium portfolio env
 │   ├── rl/                  # Phase 6-7: RL environment + agents
 │   ├── gan/                 # Phase 8-9: TimeGAN
 │   ├── nas/                 # Phase 10: DARTS
@@ -812,7 +907,8 @@ fqn1/
 │   ├── test_features.py     # 18 tests
 │   ├── test_sentiment.py    # 19 tests
 │   ├── test_graph.py        # 20 tests
-│   └── test_tgat.py         # 19 tests
+│   ├── test_tgat.py         # 19 tests
+│   └── test_env.py          # 23 tests
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)

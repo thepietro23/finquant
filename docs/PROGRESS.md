@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-16
-> **Current Phase:** Phase 5 (T-GAT Model) — ✅ DONE
-> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20), Phase 5 ✅ (19/19) = 106/106 tests GREEN
+> **Current Phase:** Phase 6 (RL Environment) — ✅ DONE
+> **Overall:** Phase 0 ✅ (18/18), Phase 1 ✅ (12/12), Phase 2 ✅ (18/18), Phase 3 ✅ (19/19), Phase 4 ✅ (20/20), Phase 5 ✅ (19/19), Phase 6 ✅ (23/23) = 129/129 tests GREEN
 
 ---
 
@@ -16,7 +16,7 @@
 | 3 | FinBERT Sentiment | ✅ DONE | D5-D6 | FinBERT + news fetcher + sentiment matrix |
 | 4 | Graph Construction | ✅ DONE | D6-D7 | Correlation + sector + supply chain edges |
 | 5 | T-GAT Model | ✅ DONE | D8-D10 | Temporal Graph Attention Network |
-| 6 | RL Environment | NOT STARTED | D10-D12 | Gym env for portfolio management |
+| 6 | RL Environment | ✅ DONE | D10-D12 | Gym env for portfolio management |
 | 7 | Deep RL Agent | NOT STARTED | D12-D17 | PPO + SAC training |
 | 8-9 | TimeGAN + Stress | NOT STARTED | D18-D24 | Synthetic data + stress testing |
 | 10 | NAS/DARTS | NOT STARTED | D25-D30 | Architecture search |
@@ -273,7 +273,41 @@ Output: (n_stocks, 64) stock embeddings
 
 ---
 
-## PHASES 6-15: Upcoming (Brief)
+## PHASE 6: RL Environment — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/rl/environment.py` | Gymnasium-compatible portfolio management environment | ~250 | ✅ |
+| `tests/test_env.py` | 23 tests (17 unit + 6 edge cases) | ~270 | ✅ 23/23 PASS |
+
+### Environment Design
+| Component | Detail |
+|-----------|--------|
+| **Observation** | stock features (n×21) + portfolio weights (n) + cash_ratio + norm_value + optional: embeddings + sentiment |
+| **Action** | continuous (n_stocks,) → softmax → target portfolio weights |
+| **Reward** | Sharpe-based + drawdown penalty + turnover penalty |
+| **Constraints** | Max 20%/stock, -5% stop loss, -15% max drawdown circuit breaker |
+| **Costs** | Transaction 0.1% + slippage 0.05% per turnover unit |
+
+### Key Decisions
+1. **Gymnasium API** — Standard RL interface. Compatible with Stable-Baselines3, CleanRL, RLlib.
+2. **Softmax action** — Raw actions → softmax → portfolio weights. Ensures valid weights (positive, sum-to-1). Numerically stable.
+3. **Random start** — Each episode starts at random date within training data. Prevents overfitting to specific start dates.
+4. **Sharpe-based reward** — Rolling 20-day Sharpe ratio. Risk-adjusted returns, not just raw returns.
+5. **Circuit breaker** — -15% drawdown terminates episode. Prevents catastrophic losses during training.
+6. **Stop loss** — Per-stock -5% daily loss → forced exit. Realistic risk management.
+
+### Tests: 23/23 PASSING ✅
+- Init (4): creates, obs_space, action_space, initial all-cash
+- Reset (4): returns tuple, obs shape, clears state, deterministic with seed
+- Step (5): returns 5-tuple, obs shape, value changes, costs applied, info keys
+- Constraints (4): max position, weights ≤ 1, stop loss, max drawdown terminates
+- Edge cases (6): zero action, single stock, truncation, gym API, summary, embeddings+sentiment
+
+---
+
+## PHASES 7-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
@@ -302,7 +336,7 @@ Output: (n_stocks, 64) stock embeddings
 | 3 | 15/15 | 4/4 | - | ✅ PASS |
 | 4 | 16/16 | 4/4 | Integration #1 | ✅ PASS |
 | 5 | 15/15 | 4/4 | - | ✅ PASS |
-| 6 | -/10 | -/6 | - | - |
+| 6 | 17/17 | 6/6 | - | ✅ PASS |
 | 7 | -/8 | -/4 | - | - |
 | 8-9 | -/13 | -/7 | Integration #2 | - |
 | 10 | -/7 | -/3 | - | - |
@@ -310,7 +344,7 @@ Output: (n_stocks, 64) stock embeddings
 | 12 | -/6 | -/3 | - | - |
 | 13 | -/10 | -/5 | Integration #3 | - |
 | 14 | - | - | - | - |
-| **Total** | **90/124** | **16+/54** | **0/11** | **106/189** |
+| **Total** | **107/124** | **22+/54** | **0/11** | **129/189** |
 
 ---
 
