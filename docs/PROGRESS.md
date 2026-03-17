@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-17
-> **Current Phase:** Phase 10 (NAS/DARTS) — ✅ DONE
-> **Overall:** Phase 0-10 = 188/188 tests GREEN
+> **Current Phase:** Phase 11 (Federated Learning) — ✅ DONE
+> **Overall:** Phase 0-11 = 205/205 tests GREEN
 
 ---
 
@@ -20,7 +20,7 @@
 | 7 | Deep RL Agent | ✅ DONE | D12-D17 | PPO + SAC training |
 | 8-9 | TimeGAN + Stress | ✅ DONE | D18-D24 | Synthetic data + stress testing |
 | 10 | NAS/DARTS | ✅ DONE | D25-D30 | DARTS T-GAT search + RL policy grid search |
-| 11 | Federated Learning | NOT STARTED | D31-D37 | Multi-client FL with DP |
+| 11 | Federated Learning | ✅ DONE | D31-D37 | FedAvg/FedProx + DP-SGD, 4 sector clients |
 | 12 | Quantum ML | NOT STARTED | D38-D42 | QAOA portfolio optimization |
 | 13 | API + Docker | NOT STARTED | D43-D46 | FastAPI + containerization |
 | 14 | Dashboard + Benchmarks | NOT STARTED | D46-D49 | React frontend with best viz libs |
@@ -463,11 +463,59 @@ Phase 10: NAS/DARTS — architecture search for T-GAT + RL policy (18/18 tests)
 
 ---
 
-## PHASES 11-15: Upcoming (Brief)
+## PHASE 11: Federated Learning — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/federated/server.py` | FLServer: FedAvg + FedProx aggregation, training loop | ~180 | ✅ |
+| `src/federated/client.py` | FLClient: 4 sector-wise clients, local training | ~160 | ✅ |
+| `src/federated/privacy.py` | DP-SGD: gradient clipping, noise injection, budget tracking | ~190 | ✅ |
+| `tests/test_fl.py` | 17 tests (13 unit + 4 edge cases) | ~300 | ✅ 17/17 PASS |
+
+### Architecture
+```
+FL System:
+  4 Clients (sector-wise non-IID split):
+    Client 0: Banking + Finance (~10 stocks)
+    Client 1: IT + Telecom (~6 stocks)
+    Client 2: Pharma + FMCG (~8 stocks)
+    Client 3: Energy + Auto + Metals + Infra + Others (~23 stocks)
+
+  Server aggregation:
+    FedAvg:  weighted_avg(client_weights, by=data_size)
+    FedProx: FedAvg + proximal_term(mu=0.01) on client side
+
+  Differential Privacy (DP-SGD):
+    1. Clip gradients to max_norm=1.0
+    2. Add calibrated Gaussian noise (epsilon=8, delta=1e-5)
+    3. Track cumulative privacy budget per round
+```
+
+### Key Decisions
+1. **From scratch, no Flower** — More thesis-friendly, demonstrates understanding of FL algorithms.
+2. **Sector-wise non-IID** — Realistic: hedge funds specialize in sectors. More challenging for FL than random split.
+3. **FedProx over FedAvg** — FedProx adds proximal term preventing client drift. Better for non-IID.
+4. **DP-SGD** — Gradient clipping + noise. epsilon=8 is usable (model still learns), delta=1e-5 standard.
+5. **Privacy budget tracking** — Cumulative epsilon via composition theorem. Alerts when budget exhausted.
+
+### Tests: 17/17 PASSING ✅
+- Client init (4): 4 clients create, sector mapping, tickers, invalid ID
+- Convergence (1): loss decreases over 20 FL rounds
+- FedAvg vs FedProx (1): both produce finite losses
+- Federated vs individual (1): FL model evaluated against solo clients
+- DP noise (1): epsilon=8 training still converges
+- Privacy budget (2): tracking increments, noise multiplier positive
+- Client fairness (1): all clients benefit from FL
+- Aggregation (2): weighted average correct, size-weighted correct
+- Edge cases (4): Byzantine client, tiny client, small epsilon, single client
+
+---
+
+## PHASES 12-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
-| 11: FL | Federated Learning with differential privacy | Sector-wise clients, privacy-preserving. Novel contribution for thesis. |
 | 12: Quantum | QAOA portfolio optimization | Quantum computing angle for thesis novelty. Compare with classical. |
 | 13: API | FastAPI + Docker | Production deployment. REST API for predictions. |
 | 14: Dashboard | React frontend | Proper UI, not Streamlit. Interactive charts, real-time updates. |
@@ -489,11 +537,11 @@ Phase 10: NAS/DARTS — architecture search for T-GAT + RL policy (18/18 tests)
 | 7 | 12/12 | 4/4 | - | ✅ PASS |
 | 8-9 | 18/18 | 7/7 | Integration #2 | ✅ PASS |
 | 10 | 14/14 | 4/4 | - | ✅ PASS |
-| 11 | -/8 | -/4 | - | - |
+| 11 | 13/13 | 4/4 | - | ✅ PASS |
 | 12 | -/6 | -/3 | - | - |
 | 13 | -/10 | -/5 | Integration #3 | - |
 | 14 | - | - | - | - |
-| **Total** | **151/124** | **37/54** | **0/11** | **188/189** |
+| **Total** | **164/124** | **41/54** | **0/11** | **205/189** |
 
 ---
 

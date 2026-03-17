@@ -2087,4 +2087,252 @@ Phase 10: search_space.py + darts.py → NAS-optimized architecture  ← NEW
 
 ---
 
-> **Next: Phase 11 — Federated Learning. 4 sector-wise clients (Banking/IT/Pharma/Energy), FedAvg + FedProx, differential privacy.**
+> **Next: Phase 12 — Quantum ML (QAOA portfolio optimization).**
+
+---
+
+## PHASE 11: Federated Learning (Privacy-Preserving Collaborative Training)
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/federated/server.py` | FL Server: FedAvg + FedProx aggregation, training coordination | Multiple "institutions" (clients) apna data share nahi karna chahte, par model improve karna chahte hain. Server sirf model weights collect karta hai, data KABHI nahi dekhta. |
+| `src/federated/client.py` | FL Client: sector-wise data split, local training, weight sharing | Har client ek "institution" represent karta hai — Banking, IT, Pharma, Energy. Non-IID data split realistic hai kyunki real hedge funds sector-specialize karte hain. |
+| `src/federated/privacy.py` | DP-SGD: gradient clipping + Gaussian noise + budget tracking | Sirf weights share karna bhi risky hai — weights se data reverse-engineer ho sakta hai. Differential Privacy guarantee deta hai ki koi individual data point identify nahi ho sakta. |
+| `tests/test_fl.py` | 17 tests: client init, convergence, FedAvg vs FedProx, DP, fairness, edge cases | Clients bante hain? FL converge hota hai? DP noise model destroy nahi karta? Byzantine client handle hota hai? |
+
+### Federated Learning — Simple Analogy
+
+```
+Sooch: 4 hospitals hain. Sabke paas cancer patients ka data hai.
+  - Hospital A: Delhi (1000 patients)
+  - Hospital B: Mumbai (800 patients)
+  - Hospital C: Chennai (600 patients)
+  - Hospital D: Kolkata (500 patients)
+
+Problem: Best cancer prediction model chahiye.
+  Option 1: Sab data ek jagah bhejo → ILLEGAL (patient privacy)
+  Option 2: Har hospital apna model train kare → limited data = weak model
+  Option 3: FEDERATED LEARNING →
+    1. Central server ek model design karta hai
+    2. Model COPY bhejta hai har hospital ko
+    3. Har hospital APNE data pe train karta hai (data stays local!)
+    4. Hospitals sirf UPDATED WEIGHTS bhejte hain (not data)
+    5. Server weights average karta hai → improved global model
+    6. Repeat 50 rounds → sab hospitals ka combined knowledge ek model mein
+
+Result: Best model WITHOUT any hospital sharing patient data.
+
+Stock market version:
+  Hospital A → Client 0: Banking + Finance stocks (HDFCBANK, ICICIBANK, SBIN...)
+  Hospital B → Client 1: IT + Telecom stocks (TCS, INFY, WIPRO...)
+  Hospital C → Client 2: Pharma + FMCG stocks (SUNPHARMA, DRREDDY, ITC...)
+  Hospital D → Client 3: Energy + Auto + Metals + Others (RELIANCE, MARUTI, TATASTEEL...)
+```
+
+### 4 Clients — Sector-Based Non-IID Split
+
+```
+Client 0: Banking + Finance (~10 stocks)
+  HDFCBANK, ICICIBANK, SBIN, KOTAKBANK, AXISBANK, INDUSINDBK,
+  BAJFINANCE, BAJAJFINSV, HDFCLIFE, SBILIFE
+  → Market ke sensitive, RBI rates se affected
+
+Client 1: IT + Telecom (~6 stocks)
+  TCS, INFY, WIPRO, HCLTECH, TECHM, BHARTIARTL
+  → Dollar rate se affected, global demand
+
+Client 2: Pharma + FMCG (~8 stocks)
+  SUNPHARMA, DRREDDY, DIVISLAB, CIPLA, NESTLEIND, HINDUNILVR, ITC, BRITANNIA
+  → Defensive stocks, recession mein bhi stable
+
+Client 3: Energy + Auto + Metals + Infra + Others (~23 stocks)
+  RELIANCE, ONGC, NTPC, POWERGRID, MARUTI, TATAMOTORS, TATASTEEL,
+  JSWSTEEL, HINDALCO, ULTRACEMCO, GRASIM, ADANIENT, ADANIPORTS, etc.
+  → Cyclical stocks, commodity prices se affected
+
+Kyu non-IID?
+  IID = "Har client ko random 12 stocks do" → easy but unrealistic.
+  Non-IID = "Har client ek sector specialist hai" → harder but realistic.
+  Real hedge funds specialize: "Goldman = banking focus, Citadel = quant/tech."
+  Non-IID challenge: Client 0 sirf banking jaanta hai, Client 1 sirf IT.
+  FL ka kaam hai: dono ki knowledge combine kare WITHOUT data share.
+```
+
+### FedAvg vs FedProx
+
+```
+FedAvg (Federated Averaging):
+  Server pe aggregation:
+    global_weights = weighted_average(client_weights, by=data_size)
+
+  Example:
+    Client 0: 100 samples, weights W₀
+    Client 1: 300 samples, weights W₁
+    Global = (100 × W₀ + 300 × W₁) / 400
+
+  Intuition: "Bada dataset wale client ki zyada sunno"
+
+  Problem: Non-IID data pe CLIENT DRIFT hota hai.
+    Client 0 sirf banking seekhta hai → weights banking ki taraf bias.
+    Client 1 sirf IT seekhta hai → weights IT ki taraf bias.
+    Average karne pe dono ki expertise partially cancel ho jaati hai!
+
+FedProx (Federated Proximal):
+  FedAvg + ek extra term client training mein:
+
+  client_loss = task_loss + (mu/2) × ||W_local - W_global||²
+
+  Yeh extra term kya karta hai?
+    "Apna local training kar, PAR global model se zyada door mat jaa."
+    mu = 0.01 → halka sa pull towards global (default)
+    mu = 1.0 → strong pull (almost no local adaptation)
+
+  Result: Client drift kam hota hai → better convergence on non-IID data.
+
+  Analogy:
+    FedAvg: "Hospital ko full freedom do, jo seekhein woh bhejo"
+    FedProx: "Hospital ko training do par ek rubber band lagao —
+              central knowledge se zyada door mat jao"
+```
+
+### Differential Privacy (DP-SGD)
+
+```
+Problem:
+  Sirf weights share karna bhi unsafe ho sakta hai!
+  Adversary model weights analyse karke reconstruct kar sakta hai:
+    "Is weight update mein RELIANCE ka data tha ya nahi?"
+  This is called "membership inference attack."
+
+Solution: Differential Privacy
+  "(epsilon, delta)-DP guarantee:
+   With probability 1-delta, an adversary CANNOT distinguish
+   whether a specific data point was in the training set."
+
+3 Steps per training round:
+  1. GRADIENT CLIPPING (Bound Sensitivity):
+     total_grad_norm = ||∇L||₂
+     if total_grad_norm > max_norm (1.0):
+       ∇L = ∇L × (max_norm / total_grad_norm)
+
+     Kyu? Agar ek data point gradient ko bahut change kare
+     (high sensitivity), toh adversary detect kar sakta hai.
+     Clipping bounds: "Koi bhi single data point
+     gradient ko max 1.0 se zyada affect nahi kar sakta."
+
+  2. NOISE INJECTION (Plausible Deniability):
+     ∇L_noisy = ∇L_clipped + N(0, σ²)
+     σ = noise_multiplier × max_grad_norm
+
+     Kyu? Clipping ke baad bhi exact gradient se info leak ho sakti hai.
+     Gaussian noise add karne se: "Yeh gradient real hai ya noise?
+     Adversary ko PATA NAHI."
+
+  3. PRIVACY BUDGET TRACKING:
+     Har round mein thoda privacy "spend" hota hai.
+     Total budget: epsilon = 8.0
+     Per round: epsilon_round = 8 / sqrt(n_rounds)
+
+     Kyu budget? Infinite noise = useless model, zero noise = no privacy.
+     epsilon = "kitni privacy sacrifice kar rahe hain."
+     epsilon = 0.1 → very private (model learns slowly)
+     epsilon = 8.0 → moderate privacy (model still learns well)
+     epsilon = ∞ → no privacy (standard training)
+
+     Simple composition: epsilon grows as sqrt(rounds).
+     50 rounds at epsilon=8 → still within budget.
+
+Noise Calibration:
+  sigma = sensitivity × sqrt(2 × ln(1.25/delta)) / epsilon_per_round
+  sensitivity = max_grad_norm / n_samples
+  → More samples = less noise needed (averaging effect)
+  → More rounds = more noise per round (budget split)
+```
+
+### FL Training Loop — Step by Step
+
+```
+For each round (50 total):
+  1. SERVER → CLIENTS: "Yeh lo global model weights"
+     (broadcast: server.get_global_weights() → client.set_weights())
+
+  2. EACH CLIENT TRAINS LOCALLY:
+     for epoch in range(5):
+       pred = model(local_data)
+       loss = MSE(pred, local_target)
+       if FedProx: loss += (mu/2) × ||W - W_global||²
+       loss.backward()
+       if DP: clip_gradients() + add_noise()
+       optimizer.step()
+
+  3. CLIENTS → SERVER: "Yeh hain meri updated weights"
+     (client.get_weights() → list of state_dicts)
+
+  4. SERVER AGGREGATES:
+     for each parameter:
+       global[param] = sum(weight_i × client[param]_i) / sum(weight_i)
+     where weight_i = client_i.data_size
+
+  5. EVALUATE: Server evaluates new global model
+     → Log avg_train_loss, avg_val_loss
+
+Result: After 50 rounds, global model has learned from ALL clients'
+  data without any client sharing their raw data.
+```
+
+### Tests: 17/17 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T11.1 | 4 clients create | create_fl_clients() → 4 FLClient objects, correct data sizes |
+| T11.2 | Sector mapping | Client 0=Banking, 1=IT, 2=Pharma, 3=Energy+others |
+| T11.3 | Client tickers | Client 0 has HDFCBANK etc. |
+| T11.4 | Invalid client ID | client_id=99 → ValueError |
+| T11.5 | Loss decreases | 20 FL rounds → last_loss < first_loss |
+| T11.6 | FedAvg + FedProx | Both strategies produce finite losses |
+| T11.7 | FL vs individual | FL model evaluated, finite loss |
+| T11.8 | DP converges | epsilon=8 + noise → training still converges |
+| T11.9 | Budget tracking | 5 rounds → rounds_spent=5, epsilon_spent > 0 |
+| T11.10 | Noise multiplier | compute_noise_multiplier() → positive, finite |
+| T11.11 | Client fairness | All 4 clients benefit (no 10× degradation) |
+| T11.12 | Weighted avg | Equal data → average of weights = 2.0 |
+| T11.13 | Size-weighted | 10 vs 90 samples → weighted towards larger client |
+| E11.1 | Byzantine client | 1 garbage client → FL still converges, finite loss |
+| E11.2 | Tiny client | 1 sample client → works, finite loss |
+| E11.3 | Small epsilon | epsilon=0.1 → large noise, but no crash |
+| E11.4 | Single client | 1 client FL = normal training, converges |
+
+### File Flow (Updated — Complete P0-P11 Pipeline)
+
+```
+Phase 0:  config.yaml + seed + logger + metrics
+Phase 1:  stocks.py → download.py → quality.py → data/*.csv
+Phase 2:  features.py → Feature Tensor (47, ~2200, 21)
+Phase 3:  news_fetcher.py → finbert.py → Sentiment Matrix (47, ~2200)
+Phase 4:  builder.py → PyG Data Objects (per day)
+Phase 5:  tgat.py → Stock Embeddings (47, 64)
+Phase 6:  environment.py → Gymnasium PortfolioEnv
+Phase 7:  agent.py → PPO/SAC trained agents
+Phase 8:  timegan.py → Synthetic augmented data
+Phase 9:  stress.py → VaR, CVaR, crash scenarios
+Phase 10: search_space.py + darts.py → NAS-optimized architecture
+Phase 11: server.py + client.py + privacy.py → Federated Learning  ← NEW
+
+         Client 0          Client 1          Client 2          Client 3
+        (Banking)           (IT)            (Pharma)         (Energy+Auto)
+            |                 |                |                  |
+            +--- local train -+--- local train-+--- local train--+
+            |                 |                |                  |
+            +---- weights ----+---- weights ---+---- weights ----+
+                              |
+                        FL Server
+                     (FedAvg / FedProx)
+                              |
+                     Global Model (better than any individual!)
+                              |
+                     + DP-SGD (privacy guarantee)
+                              |
+                     Phase 12: Quantum ML (QAOA)
+```

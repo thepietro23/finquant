@@ -1185,6 +1185,180 @@ print('Open models/nas_report.pdf to see convergence plots + architecture heatma
 
 ---
 
+## Phase 11: Federated Learning — Manual Testing
+
+### 1. Create FL Clients (Sector-Based)
+```python
+python -c "
+from src.federated.client import (
+    create_fl_clients, get_client_sectors, get_client_tickers, CLIENT_SECTORS
+)
+import numpy as np
+import torch.nn as nn
+
+# Show sector mapping
+print('=== 4 FL Clients (Sector-Based) ===')
+for cid in range(4):
+    sectors = get_client_sectors(cid)
+    tickers = get_client_tickers(cid)
+    print(f'  Client {cid}: {\" + \".join(sectors)} ({len(tickers)} stocks)')
+    print(f'    Tickers: {tickers[:5]}...')
+print()
+
+# Create simple model + clients
+class SimpleModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(10, 32), nn.ReLU(), nn.Linear(32, 5))
+    def forward(self, x): return self.net(x)
+
+model = SimpleModel()
+client_data = {}
+for cid in range(4):
+    np.random.seed(cid)
+    X = np.random.randn(80 + cid * 20, 10).astype(np.float32)
+    y = np.random.randn(80 + cid * 20, 5).astype(np.float32)
+    client_data[cid] = (X, y)
+
+clients = create_fl_clients(model, client_data, lr=0.01)
+print(f'Created {len(clients)} clients')
+for c in clients:
+    print(f'  Client {c.client_id}: {c.data_size} samples')
+"
+```
+
+### 2. Run Federated Learning (FedAvg)
+```python
+python -c "
+import numpy as np
+import torch.nn as nn
+from src.federated.client import create_fl_clients
+from src.federated.server import FLServer
+from src.utils.seed import set_seed
+
+set_seed(42)
+class SimpleModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(10, 32), nn.ReLU(), nn.Linear(32, 5))
+    def forward(self, x): return self.net(x)
+
+model = SimpleModel()
+client_data = {i: (np.random.randn(100, 10).astype(np.float32),
+                    np.random.randn(100, 5).astype(np.float32)) for i in range(4)}
+
+clients = create_fl_clients(model, client_data, lr=0.01)
+server = FLServer(model, strategy='FedAvg')
+
+print('Running FL (20 rounds, FedAvg)...')
+result = server.run_fl(clients, n_rounds=20, local_epochs=3)
+
+print(f'=== FL Result ===')
+print(f'Strategy: {result.strategy}')
+print(f'Clients: {result.num_clients}')
+print(f'Rounds: {len(result.rounds)}')
+print(f'First loss: {result.rounds[0].avg_train_loss:.4f}')
+print(f'Final loss: {result.final_global_loss:.4f}')
+print(f'Converged: {result.final_global_loss < result.rounds[0].avg_train_loss}')
+"
+```
+
+### 3. FedAvg vs FedProx Comparison
+```python
+python -c "
+import numpy as np
+import torch.nn as nn
+from src.federated.client import create_fl_clients
+from src.federated.server import FLServer
+from src.utils.seed import set_seed
+
+class SimpleModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(10, 32), nn.ReLU(), nn.Linear(32, 5))
+    def forward(self, x): return self.net(x)
+
+client_data = {i: (np.random.randn(80, 10).astype(np.float32),
+                    np.random.randn(80, 5).astype(np.float32)) for i in range(4)}
+
+# FedAvg
+set_seed(42)
+model = SimpleModel()
+clients = create_fl_clients(model, client_data, lr=0.01)
+server = FLServer(model, strategy='FedAvg')
+result_avg = server.run_fl(clients, n_rounds=15, local_epochs=3)
+
+# FedProx
+set_seed(42)
+model = SimpleModel()
+clients = create_fl_clients(model, client_data, lr=0.01)
+server = FLServer(model, strategy='FedProx', fedprox_mu=0.01)
+result_prox = server.run_fl(clients, n_rounds=15, local_epochs=3)
+
+print(f'=== FedAvg vs FedProx ===')
+print(f'FedAvg  final loss: {result_avg.final_global_loss:.4f}')
+print(f'FedProx final loss: {result_prox.final_global_loss:.4f}')
+winner = 'FedProx' if result_prox.final_global_loss < result_avg.final_global_loss else 'FedAvg'
+print(f'Winner: {winner}')
+"
+```
+
+### 4. Differential Privacy (DP-SGD)
+```python
+python -c "
+import torch
+import torch.nn as nn
+from src.federated.privacy import DPTrainer, compute_noise_multiplier
+
+# Create DP trainer
+dp = DPTrainer(epsilon=8.0, delta=1e-5, max_grad_norm=1.0,
+               n_rounds=50, n_samples=1000)
+
+print(f'=== DP-SGD Configuration ===')
+print(f'Epsilon (privacy budget): {dp.epsilon}')
+print(f'Delta: {dp.delta}')
+print(f'Max gradient norm: {dp.max_grad_norm}')
+print(f'Noise multiplier: {dp.noise_multiplier:.6f}')
+print()
+
+# Train with DP
+model = nn.Sequential(nn.Linear(10, 32), nn.ReLU(), nn.Linear(32, 5))
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+X = torch.randn(50, 10)
+y = torch.randn(50, 5)
+
+for step in range(5):
+    optimizer.zero_grad()
+    loss = nn.functional.mse_loss(model(X), y)
+    loss.backward()
+    grad_norm = dp.clip_and_noise(model)
+    optimizer.step()
+    status = dp.get_budget_status()
+    print(f'Step {step+1}: loss={loss.item():.4f}, grad_norm={grad_norm:.4f}, '
+          f'eps_spent={status[\"epsilon_spent\"]:.4f}, budget_left={status[\"budget_remaining_pct\"]:.1f}%')
+"
+```
+**Expected:** Loss decreases, budget gradually consumed, noise doesn't destroy convergence.
+
+### 5. Privacy Budget Exhaustion Demo
+```python
+python -c "
+from src.federated.privacy import DPTrainer
+
+dp = DPTrainer(epsilon=1.0, delta=1e-5, max_grad_norm=1.0,
+               n_rounds=10, n_samples=100)
+
+print(f'Small budget: epsilon={dp.epsilon}')
+print(f'Exhausted: {dp.is_budget_exhausted()}')
+print(f'Status: {dp.get_budget_status()}')
+print()
+print('After many rounds of noise, budget gets consumed.')
+print('In production: stop training when budget exhausted!')
+"
+```
+
+---
+
 ## Running Tests (Automated — Har Phase Ke Baad)
 
 ### Run All Tests
@@ -1206,6 +1380,7 @@ python -m pytest tests/test_env.py -v      # Phase 6 only
 python -m pytest tests/test_agent.py -v    # Phase 7 only
 python -m pytest tests/test_gan.py -v      # Phase 8-9 only
 python -m pytest tests/test_nas.py -v     # Phase 10 only
+python -m pytest tests/test_fl.py -v      # Phase 11 only
 ```
 
 ### Run Single Test
@@ -1281,7 +1456,10 @@ fqn1/
 │   ├── nas/
 │   │   ├── search_space.py  # 5 ops, MixedOp, SearchSpace config
 │   │   └── darts.py         # TGATSupernet, DARTSSearcher, RL grid search
-│   ├── federated/           # Phase 11: FL
+│   ├── federated/
+│   │   ├── server.py       # FLServer: FedAvg + FedProx aggregation
+│   │   ├── client.py       # 4 sector-wise clients, local training
+│   │   └── privacy.py      # DP-SGD: clipping + noise + budget
 │   ├── quantum/             # Phase 12: Quantum ML
 │   └── api/                 # Phase 13: FastAPI
 ├── tests/
@@ -1294,7 +1472,8 @@ fqn1/
 │   ├── test_env.py          # 23 tests
 │   ├── test_agent.py        # 16 tests
 │   ├── test_gan.py          # 25 tests (TimeGAN + Stress)
-│   └── test_nas.py          # 18 tests (DARTS + RL grid search)
+│   ├── test_nas.py          # 18 tests (DARTS + RL grid search)
+│   └── test_fl.py           # 17 tests (FL + DP + edge cases)
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)
