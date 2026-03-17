@@ -2087,7 +2087,7 @@ Phase 10: search_space.py + darts.py → NAS-optimized architecture  ← NEW
 
 ---
 
-> **Next: Phase 12 — Quantum ML (QAOA portfolio optimization).**
+> **Next: Phase 13 — API + Docker (FastAPI endpoints).**
 
 ---
 
@@ -2335,4 +2335,266 @@ Phase 11: server.py + client.py + privacy.py → Federated Learning  ← NEW
                      + DP-SGD (privacy guarantee)
                               |
                      Phase 12: Quantum ML (QAOA)
+```
+
+---
+
+## PHASE 12: Quantum ML (QAOA Portfolio Optimization)
+
+### Kya Banaya?
+
+| File | Kya Hai | Kyu Banaya |
+|------|---------|------------|
+| `src/quantum/qaoa.py` | QAOA circuit builder + COBYLA optimizer. QUBO matrix → Ising Hamiltonian → quantum circuit → optimize → decode bitstring | Portfolio mein "kaunse stocks select karein" ek combinatorial optimization problem hai. 47 stocks mein se 8 choose karna = C(47,8) = 314M+ combinations. Quantum computing is angle ko solve kar sakta hai. |
+| `src/quantum/portfolio.py` | Portfolio-specific encoding, classical brute-force benchmark, Markowitz weight optimization, scaling study | QAOA sirf stocks SELECT karta hai (binary: haan/na). Weights kitne lagane hain yeh classical Markowitz karta hai. Plus classical brute-force baseline thesis comparison ke liye. |
+| `tests/test_quantum.py` | 12 tests: QUBO, circuit, optimization, classical benchmark, comparison, scaling, edge cases | QUBO matrix sahi bani? Circuit chalta hai? QAOA valid result deta hai? Classical se compare ho raha hai? |
+
+### QAOA — Simple Analogy
+
+```
+Sooch: Tu ek party plan kar raha hai.
+  Tere paas 12 friends hain, 6 ko invite karna hai.
+  Rules: Jo aayein unme se zyada se zyada enjoy ho (return), par jhagda kam ho (risk).
+
+Classical approach:
+  Sab 924 possible groups check kar. Best group pick kar.
+  Works for 12 friends. But 1000 friends? Impossible.
+
+Quantum approach (QAOA):
+  Step 1: Har friend = ek qubit (0 = nahi aayega, 1 = aayega)
+  Step 2: "Fun function" circuit mein encode kar:
+          - Friends jo enjoy karte hain saath = positive
+          - Friends jo ladte hain = negative
+          - Exactly 6 invite = constraint
+  Step 3: Quantum circuit SARE groups explore karta hai SIMULTANEOUSLY
+          (superposition = sab states ek saath exist karte hain)
+  Step 4: Classical optimizer (COBYLA) circuit tune karta hai
+  Step 5: Measure → best group milta hai
+
+Stock market version:
+  12 candidate stocks (top by Sharpe from NIFTY 50)
+  → Select 6 with highest risk-adjusted return
+  → QAOA finds the combination
+  → Markowitz weights compute karta hai
+```
+
+### QUBO — Optimization Problem Encoding
+
+```
+QUBO = Quadratic Unconstrained Binary Optimization
+  "Binary" = har variable 0 ya 1 (include stock ya nahi)
+  "Quadratic" = objective mein x_i × x_j terms hain (pairs of stocks)
+
+Our QUBO for portfolio:
+  minimize: x^T Q x
+
+Where Q matrix has 3 parts:
+
+1. RETURN TERMS (diagonal):
+   Q[i,i] += -mu_i
+   "Stock i ka expected return zyada hai? Include karo (negative = minimize mein better)"
+
+2. RISK TERMS (off-diagonal):
+   Q[i,j] += lambda × sigma[i,j]
+   "Stock i aur j correlated hain? Dono include karna risky hai"
+   lambda = risk_aversion (0.5 default = balanced)
+
+3. CARDINALITY CONSTRAINT:
+   penalty × (sum(x) - K)^2
+   "Exactly K stocks select karo. Agar 5 ya 7 select kiye toh BIG penalty"
+   Expanded: diagonal + off-diagonal terms mein distribute hota hai
+
+Example (4 stocks, select 2):
+  mu = [0.001, 0.002, 0.003, 0.004]  (daily returns)
+  sigma = [[0.01, 0.005, ...], ...]    (covariance)
+
+  Q = [ [-0.001 + penalty × (-3), penalty × 2, ...],
+        [penalty × 2, -0.002 + penalty × (-3), ...],
+        ... ]
+
+  QAOA minimizes x^T Q x → finds best 2 stocks
+```
+
+### QUBO → Ising Conversion
+
+```
+Quantum computers prefer spins (+1, -1) over binary (0, 1).
+
+Substitution: x_i = (1 - z_i) / 2
+  x=0 → z=+1
+  x=1 → z=-1
+
+QUBO: minimize x^T Q x
+  ↓ substitute
+Ising: minimize sum_ij J[i,j] z_i z_j + sum_i h[i] z_i + offset
+
+J = coupling matrix (ZZ interactions between qubits)
+h = field vector (Z rotation on each qubit)
+offset = constant (doesn't affect optimization)
+
+Kyu convert?
+  Qiskit quantum gates naturally work with +1/-1 (Pauli Z eigenvalues).
+  RZZ gate = Z_i × Z_j interaction
+  RZ gate  = single Z rotation
+```
+
+### QAOA Circuit — Step by Step
+
+```
+n_qubits = 8 (one per candidate stock)
+n_layers = 3 (QAOA depth, p=3)
+
+1. INITIAL STATE: Apply H (Hadamard) to all qubits
+   → Creates uniform superposition: all 2^8 = 256 portfolios equally probable
+
+   |0⟩ → H → (|0⟩ + |1⟩)/√2
+   Each qubit: 50% chance include, 50% chance exclude
+
+2. For each layer p = 0, 1, 2:
+
+   a. COST UNITARY: exp(-i × gamma_p × C)
+      For each pair (i,j): RZZ(2 × gamma × J[i,j]) on qubits i,j
+      For each qubit i:    RZ(2 × gamma × h[i]) on qubit i
+
+      "Yeh step HIGH-COST portfolios ko penalize karta hai"
+      gamma_p = learnable parameter
+
+   b. MIXER UNITARY: exp(-i × beta_p × B)
+      For each qubit i: RX(2 × beta_p) on qubit i
+
+      "Yeh step portfolio space explore karta hai (mixing)"
+      beta_p = learnable parameter
+
+3. MEASURE all qubits → bitstring (e.g., "10110010")
+   1 = stock selected, 0 = not selected
+
+Total parameters: 2 × n_layers = 6 angles (3 gammas + 3 betas)
+```
+
+### Classical Optimizer (COBYLA) — The Outer Loop
+
+```
+QAOA is a VARIATIONAL algorithm:
+  → Classical optimizer tunes gamma/beta parameters
+  → Quantum circuit evaluates the objective
+  → Repeat until converged
+
+COBYLA (Constrained Optimization BY Linear Approximation):
+  - Gradient-free (doesn't need derivatives)
+  - Works with noisy objectives (quantum measurements are probabilistic)
+  - ~100-200 iterations to converge
+
+Each iteration:
+  1. COBYLA proposes new gamma/beta values
+  2. Build circuit with these values
+  3. Run circuit 1024 times (shots)
+  4. Count bitstrings: "10110010" appeared 42 times, "11001010" appeared 38 times...
+  5. Expected cost = sum(cost(bs) × count(bs)) / total_shots
+  6. COBYLA uses this to propose better parameters
+  7. Repeat
+
+After convergence:
+  → Final circuit with optimal gamma/beta
+  → Run one more time → pick most common (or lowest cost) bitstring
+  → Decode: "10110010" → stocks 0, 2, 3, 5 selected
+```
+
+### Classical Brute-Force Benchmark
+
+```
+For N ≤ 12, we can enumerate ALL subsets:
+  C(8, 4) = 70 combos (8 stocks, select 4)
+  C(12, 6) = 924 combos (12 stocks, select 6)
+
+For each combo:
+  1. Take subset mu and sigma
+  2. Run Markowitz optimization → optimal weights
+  3. Compute Sharpe ratio
+  4. Track best
+
+This gives the PROVABLY OPTIMAL classical answer.
+
+Thesis comparison:
+  "QAOA found Sharpe = 1.8, Classical optimal = 2.0"
+  "QAOA was 90% as good as optimal in 5 seconds"
+
+  On real quantum hardware, QAOA would scale polynomially,
+  while brute-force scales exponentially.
+  On simulator, both are similar — but the algorithm is validated.
+```
+
+### Markowitz Portfolio Optimization
+
+```
+After QAOA selects K stocks, we compute OPTIMAL WEIGHTS:
+
+maximize: (w^T mu - rf) / sqrt(w^T Sigma w)   (Sharpe ratio)
+subject to: sum(w) = 1                         (fully invested)
+            0 ≤ w_i ≤ 0.20                     (max 20% per stock)
+
+Uses scipy SLSQP optimizer (sequential least squares).
+
+Example:
+  QAOA selects: [HDFCBANK, TCS, RELIANCE, SUNPHARMA]
+  Markowitz weights: [0.20, 0.20, 0.15, 0.45]  (Pharma gets most!)
+  Sharpe ratio: 1.85
+
+Kyu 20% max? SEBI rules + diversification.
+  Agar 60% RELIANCE mein daale aur Reliance crash kare → portfolio dead.
+```
+
+### Tests: 12/12 PASSING
+
+| ID | Test | Kya Check |
+|----|------|-----------|
+| T12.1 | QUBO shape | Q matrix is N×N |
+| T12.2 | QUBO finite | All entries finite, no NaN |
+| T12.3 | Returns on diagonal | Q[i,i] includes -mu_i terms |
+| T12.4 | Circuit builds | Correct qubit count, has parameters |
+| T12.5 | Circuit measurements | Classical bits present for readout |
+| T12.6 | QAOA valid result | QAOAResult with correct bitstring length |
+| T12.7 | Classical benchmark | Brute-force finds portfolio, Sharpe finite |
+| T12.8 | Quantum vs Classical | Both produce finite Sharpe ratios |
+| T12.9 | Scaling benchmark | Runs at [4, 6] sizes, times positive |
+| E12.1 | 2-asset minimum | QAOA works with 2 qubits, selects 1 |
+| E12.2 | Identical assets | All same returns → any selection valid |
+| E12.3 | Single asset | n=1, k=1 → trivial, weight=1.0 |
+
+### File Flow (Updated — Complete P0-P12 Pipeline)
+
+```
+Phase 0:  config.yaml + seed + logger + metrics
+Phase 1:  stocks.py → download.py → quality.py → data/*.csv
+Phase 2:  features.py → Feature Tensor (47, ~2200, 21)
+Phase 3:  news_fetcher.py → finbert.py → Sentiment Matrix (47, ~2200)
+Phase 4:  builder.py → PyG Data Objects (per day)
+Phase 5:  tgat.py → Stock Embeddings (47, 64)
+Phase 6:  environment.py → Gymnasium PortfolioEnv
+Phase 7:  agent.py → PPO/SAC trained agents
+Phase 8:  timegan.py → Synthetic augmented data
+Phase 9:  stress.py → VaR, CVaR, crash scenarios
+Phase 10: search_space.py + darts.py → NAS-optimized architecture
+Phase 11: server.py + client.py + privacy.py → Federated Learning
+Phase 12: qaoa.py + portfolio.py → Quantum portfolio selection  ← NEW
+
+         47 NIFTY stocks
+              |
+         Top 8 by Sharpe ratio (pre-selection)
+              |
+       +------+------+
+       |              |
+    QAOA           Classical
+  (quantum)     (brute-force)
+       |              |
+  Select K=4      Select K=4
+       |              |
+  Markowitz       Markowitz
+   weights         weights
+       |              |
+       +--- compare --+
+              |
+         Thesis results:
+         "Quantum achieves X% of classical optimal"
+              |
+         Phase 13: API + Docker
 ```

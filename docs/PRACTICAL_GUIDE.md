@@ -1185,6 +1185,110 @@ print('Open models/nas_report.pdf to see convergence plots + architecture heatma
 
 ---
 
+## Phase 12: Quantum ML (QAOA) — Manual Testing
+
+### 1. Build QUBO Matrix
+```python
+python -c "
+import numpy as np
+from src.quantum.qaoa import build_qubo, evaluate_cost
+
+mu = np.array([0.001, 0.002, 0.003, 0.004])
+sigma = np.eye(4) * 0.0001
+
+Q = build_qubo(mu, sigma, risk_aversion=0.5, k_assets=2)
+print('=== QUBO Matrix ===')
+print(f'Shape: {Q.shape}')
+print(f'Matrix:\n{Q.round(6)}')
+print()
+
+# Test some bitstrings
+for bs in ['1100', '0011', '1010', '0110']:
+    cost = evaluate_cost(bs, Q)
+    selected = [i for i, b in enumerate(bs) if b == '1']
+    print(f'  {bs} (stocks {selected}): cost = {cost:.6f}')
+"
+```
+
+### 2. Run QAOA Optimization
+```python
+python -c "
+import numpy as np
+from src.quantum.qaoa import run_qaoa
+from src.utils.seed import set_seed
+
+set_seed(42)
+mu = np.array([0.001, 0.002, 0.003, 0.004])
+sigma = np.eye(4) * 0.0001
+
+result = run_qaoa(mu, sigma, k_assets=2, n_layers=2, shots=512, seed=42)
+
+print('=== QAOA Result ===')
+print(f'Best bitstring: {result.best_bitstring}')
+print(f'Selected assets: {result.selected_assets}')
+print(f'Best cost: {result.best_cost:.6f}')
+print(f'Converged: {result.optimization_converged}')
+print(f'Function evals: {result.n_function_evals}')
+print(f'Top 5 counts:')
+sorted_counts = sorted(result.all_counts.items(), key=lambda x: -x[1])[:5]
+for bs, count in sorted_counts:
+    print(f'  {bs}: {count} times')
+"
+```
+
+### 3. Quantum vs Classical Comparison
+```python
+python -c "
+import numpy as np
+from src.quantum.portfolio import quantum_portfolio_optimize
+from src.utils.seed import set_seed
+
+set_seed(42)
+# Synthetic returns: 8 assets, 500 days
+rng = np.random.RandomState(42)
+returns = rng.randn(500, 8) * 0.01 + 0.0005
+
+result = quantum_portfolio_optimize(
+    returns, n_assets=8, k_select=4,
+    qaoa_layers=2, shots=512, seed=42)
+
+print('=== Quantum vs Classical ===')
+print(f'Quantum:  assets={result.quantum_assets}, Sharpe={result.quantum_sharpe:.3f}')
+print(f'          weights={result.quantum_weights.round(3)}')
+print(f'          return={result.quantum_return:.2%}, risk={result.quantum_risk:.2%}')
+print()
+print(f'Classical: assets={result.classical_assets}, Sharpe={result.classical_sharpe:.3f}')
+print(f'           weights={result.classical_weights.round(3)}')
+print(f'           return={result.classical_return:.2%}, risk={result.classical_risk:.2%}')
+print()
+ratio = result.quantum_sharpe / max(result.classical_sharpe, 0.001) * 100
+print(f'QAOA achieves {ratio:.0f}% of classical optimal Sharpe')
+"
+```
+
+### 4. Scaling Benchmark
+```python
+python -c "
+import numpy as np
+from src.quantum.portfolio import run_scaling_benchmark
+from src.utils.seed import set_seed
+
+set_seed(42)
+returns = np.random.RandomState(42).randn(500, 8) * 0.01 + 0.0005
+
+results = run_scaling_benchmark(
+    returns, benchmark_sizes=[4, 6, 8],
+    qaoa_layers=1, shots=256, seed=42)
+
+print('=== Scaling Benchmark ===')
+print(f'{\"N\":>4s} {\"K\":>3s} {\"QAOA Sharpe\":>12s} {\"Classical\":>10s} {\"QAOA Time\":>10s} {\"Class Time\":>10s}')
+for r in results:
+    print(f'{r.n_assets:4d} {r.k_select:3d} {r.qaoa_sharpe:12.3f} {r.classical_sharpe:10.3f} {r.qaoa_time_sec:10.1f}s {r.classical_time_sec:10.3f}s')
+"
+```
+
+---
+
 ## Phase 11: Federated Learning — Manual Testing
 
 ### 1. Create FL Clients (Sector-Based)
@@ -1381,6 +1485,7 @@ python -m pytest tests/test_agent.py -v    # Phase 7 only
 python -m pytest tests/test_gan.py -v      # Phase 8-9 only
 python -m pytest tests/test_nas.py -v     # Phase 10 only
 python -m pytest tests/test_fl.py -v      # Phase 11 only
+python -m pytest tests/test_quantum.py -v # Phase 12 only
 ```
 
 ### Run Single Test
@@ -1460,6 +1565,9 @@ fqn1/
 │   │   ├── server.py       # FLServer: FedAvg + FedProx aggregation
 │   │   ├── client.py       # 4 sector-wise clients, local training
 │   │   └── privacy.py      # DP-SGD: clipping + noise + budget
+│   ├── quantum/
+│   │   ├── qaoa.py         # QAOA: QUBO, Ising, circuit, COBYLA
+│   │   └── portfolio.py    # Portfolio encoding, Markowitz, scaling
 │   ├── quantum/             # Phase 12: Quantum ML
 │   └── api/                 # Phase 13: FastAPI
 ├── tests/
@@ -1473,7 +1581,8 @@ fqn1/
 │   ├── test_agent.py        # 16 tests
 │   ├── test_gan.py          # 25 tests (TimeGAN + Stress)
 │   ├── test_nas.py          # 18 tests (DARTS + RL grid search)
-│   └── test_fl.py           # 17 tests (FL + DP + edge cases)
+│   ├── test_fl.py           # 17 tests (FL + DP + edge cases)
+│   └── test_quantum.py      # 12 tests (QAOA + portfolio + edge cases)
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)

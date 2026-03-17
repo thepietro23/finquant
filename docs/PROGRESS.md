@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-17
-> **Current Phase:** Phase 11 (Federated Learning) — ✅ DONE
-> **Overall:** Phase 0-11 = 205/205 tests GREEN
+> **Current Phase:** Phase 12 (Quantum ML) — ✅ DONE
+> **Overall:** Phase 0-12 = 217/217 tests GREEN
 
 ---
 
@@ -21,7 +21,7 @@
 | 8-9 | TimeGAN + Stress | ✅ DONE | D18-D24 | Synthetic data + stress testing |
 | 10 | NAS/DARTS | ✅ DONE | D25-D30 | DARTS T-GAT search + RL policy grid search |
 | 11 | Federated Learning | ✅ DONE | D31-D37 | FedAvg/FedProx + DP-SGD, 4 sector clients |
-| 12 | Quantum ML | NOT STARTED | D38-D42 | QAOA portfolio optimization |
+| 12 | Quantum ML | ✅ DONE | D38-D42 | QAOA portfolio selection + classical benchmark |
 | 13 | API + Docker | NOT STARTED | D43-D46 | FastAPI + containerization |
 | 14 | Dashboard + Benchmarks | NOT STARTED | D46-D49 | React frontend with best viz libs |
 | 15 | Thesis + Demo | NOT STARTED | D50-D56 | Final thesis document |
@@ -512,11 +512,50 @@ FL System:
 
 ---
 
-## PHASES 12-15: Upcoming (Brief)
+## PHASE 12: Quantum ML (QAOA) — ✅ DONE
+
+### Kya Banaya (What)
+| File | Purpose | Lines | Status |
+|------|---------|-------|--------|
+| `src/quantum/qaoa.py` | QAOA: QUBO build, Ising convert, circuit build, COBYLA optimize | ~250 | ✅ |
+| `src/quantum/portfolio.py` | Portfolio encoding, Markowitz weights, classical brute-force, scaling study | ~230 | ✅ |
+| `tests/test_quantum.py` | 12 tests (9 unit + 3 edge cases) | ~200 | ✅ 12/12 PASS |
+
+### Architecture
+```
+QAOA Portfolio Selection:
+  1. 47 NIFTY stocks → top 8 by Sharpe → candidate pool
+  2. QUBO matrix: -returns + risk_aversion × covariance + penalty × (sum=K)²
+  3. QUBO → Ising (Z/ZZ terms): x = (1-z)/2 substitution
+  4. QAOA circuit: H gates → [cost_unitary + mixer_unitary] × p layers → measure
+  5. COBYLA optimizer tunes gamma/beta angles (200 iterations)
+  6. Best bitstring → selected K assets → Markowitz optimal weights
+  7. Compare with classical brute-force (exact for N≤12)
+```
+
+### Key Decisions
+1. **Qiskit 2.3 + AerSimulator** — Most mature quantum framework. Shot-based simulation matches real hardware.
+2. **Binary selection + classical weights** — QAOA selects WHICH assets (binary), Markowitz computes HOW MUCH (continuous). Standard hybrid approach.
+3. **COBYLA optimizer** — Gradient-free, handles noisy shot-based objectives. Matches config.
+4. **N≤12 qubit ceiling** — Classical simulation is O(2^N). 12 qubits = 4096 states, feasible.
+5. **Penalty-based cardinality constraint** — penalty × (sum(x) - K)² forces exactly K assets selected.
+6. **Brute-force classical baseline** — C(12,6) = 924 combos, exact optimal. Fair comparison for thesis.
+
+### Tests: 12/12 PASSING ✅
+- QUBO (3): correct shape, finite entries, returns on diagonal
+- Circuit (2): builds correctly, has measurement gates
+- Optimization (1): QAOA returns valid result with correct bitstring
+- Classical (1): brute-force finds portfolio with finite Sharpe
+- Quantum vs Classical (1): both produce finite Sharpe ratios
+- Scaling (1): benchmark at [4, 6] sizes completes
+- Edge cases (3): 2-asset minimum, identical assets, single asset
+
+---
+
+## PHASES 13-15: Upcoming (Brief)
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
-| 12: Quantum | QAOA portfolio optimization | Quantum computing angle for thesis novelty. Compare with classical. |
 | 13: API | FastAPI + Docker | Production deployment. REST API for predictions. |
 | 14: Dashboard | React frontend | Proper UI, not Streamlit. Interactive charts, real-time updates. |
 | 15: Thesis | Final document + demo | Everything compiled into thesis format. |
@@ -538,10 +577,10 @@ FL System:
 | 8-9 | 18/18 | 7/7 | Integration #2 | ✅ PASS |
 | 10 | 14/14 | 4/4 | - | ✅ PASS |
 | 11 | 13/13 | 4/4 | - | ✅ PASS |
-| 12 | -/6 | -/3 | - | - |
+| 12 | 9/9 | 3/3 | - | ✅ PASS |
 | 13 | -/10 | -/5 | Integration #3 | - |
 | 14 | - | - | - | - |
-| **Total** | **164/124** | **41/54** | **0/11** | **205/189** |
+| **Total** | **173/124** | **44/54** | **0/11** | **217/189** |
 
 ---
 
