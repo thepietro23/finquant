@@ -2700,19 +2700,62 @@ Phase 9:  stress.py → VaR, CVaR, crash scenarios
 Phase 10: search_space.py + darts.py → NAS-optimized architecture
 Phase 11: server.py + client.py + privacy.py → Federated Learning
 Phase 12: qaoa.py + portfolio.py → Quantum portfolio selection
-Phase 13: schemas.py + main.py + Docker → REST API  ← NEW
+Phase 13: schemas.py + main.py + Docker → REST API
+Phase 14: React Dashboard (10 pages) → User Interface  ← NEW
 
-         All 12 phases of ML models
+         All 13 phases of ML models + API
               |
-         FastAPI REST API (8 endpoints)
+         React Dashboard (10 pages)
               |
-       +------+------+------+------+
-       |      |      |      |      |
-   Sentiment Stocks Stress QAOA Metrics
-       |      |      |      |      |
-       +------+------+------+------+
-              |
-         React Dashboard (Phase 14)
+   +----+----+----+----+----+----+----+----+----+----+
+   |    |    |    |    |    |    |    |    |    |    |
+  Home Port  GNN  RL  Stress NAS  FL Quant Sent Graph
               |
          Thesis + Demo (Phase 15)
 ```
+
+---
+
+## PHASE 14: React Dashboard — User Interface
+
+### Kya Banaya?
+
+**Full React dashboard** — 10 pages, har ek page ek ML module ke results dikhata hai. Terracotta (#C15F3C) warm theme, animated charts, live API integration.
+
+### Kyu Dashboard Banaya?
+
+ML model train karna alag baat hai, usse ek professional product banana alag. Professor ko sirf terminal output dikhana vs beautiful interactive dashboard dikhana — impression 100x better.
+
+**Analogy**: Tumne world's best biryani banai (ML models), but restaurant mein serve karne ke liye plate chahiye (dashboard), waiter chahiye (API), aur menu chahiye (UI design). Dashboard = plate + presentation.
+
+### 10 Pages Samjho
+
+**1. Overview (Home `/`)** — Portfolio ka bird's eye view. Top mein 4 metric cards (₹ value, Sharpe, Max DD, annual return) animated count-up ke saath. Neeche performance chart — hamara portfolio vs NIFTY 50 benchmark. Donut chart for sector allocation. Table for top holdings.
+
+**2. Portfolio (`/portfolio`)** — Detailed metrics via live API call. Sector-wise weight distribution. Full stock list with NIFTY 50 tickers.
+
+**3. GNN Insights (`/gnn`)** — Phase 4-5 ka visualization. SVG graph mein stocks as nodes, edges as relationships. Attention heatmap dikhata hai ki T-GAT kaunse stock pairs pe zyada dhyaan de raha hai. Edge type legend (sector=terracotta, supply=indigo, correlation=teal).
+
+**4. RL Agent (`/rl`)** — Phase 7 ka monitor. PPO vs SAC training reward curve (area chart, terracotta vs indigo). Portfolio weights bar chart — konse stock mein kitna invest kar raha hai RL agent. Agent toggle button (PPO/SAC).
+
+**5. Stress Testing (`/stress`)** — Phase 9 ka interactive tool. **Live API call** — n_stocks aur n_simulations enter karo, "Generate" press karo, real stress test chalega. Monte Carlo 30 paths as faint lines. VaR/CVaR gauges. Scenario results table with badges.
+
+**6. NAS Lab (`/nas`)** — Phase 10 ka results. Architecture diagram — boxes connected by wires showing best-found ops (Linear, Attention, Skip). Alpha convergence multi-line chart. NAS vs hand-designed bar comparison.
+
+**7. Federated (`/fl`)** — Phase 11 ka monitor. 4 client cards (Banking, IT, Pharma, Energy). Convergence curves — FedProx vs FedAvg vs individual clients. Fairness bar chart — with FL vs without FL Sharpe comparison.
+
+**8. Quantum (`/quantum`)** — Phase 12 ka interactive lab. **Live API call** — n_assets, k_select, layers set karo, "Run QAOA" press karo. Circuit diagram SVG dikhata hai — H gates, cost unitaries (γ), mixer unitaries (β), measurements. Sharpe comparison bar. Quantum vs classical weights side-by-side.
+
+**9. Sentiment (`/sentiment`)** — Phase 3 ka interactive tool. **Live API call** — text type karo, FinBERT analyze karega. Score bar (-1 to +1) with gradient. Batch analysis — 8 sample headlines ek click mein. Sector sentiment horizontal bar chart.
+
+**10. Graph Visualization (`/graph`)** — **EXTRA PAGE** — Interactive force-directed stock network. Har stock ek node — **size = RL portfolio weight** (zyada weight = bada node). **Color = sector** (Banking=terracotta, IT=indigo, etc.). Edges filter kar sakte ho (sector/supply/correlation toggle). Click pe stock details (sector, weight, daily return, connections). Custom force simulation — nodes repel, edges attract, spring physics.
+
+### Technical Decisions
+
+1. **Vite + React 18 + TypeScript** — Fast build (<6s), type safety, hot reload.
+2. **Tailwind CSS v4** — Utility-first CSS. `@theme` directive for design tokens. No custom CSS files needed.
+3. **Framer Motion** — Spring animations for cards (fade-slide-up), number count-ups, page transitions.
+4. **Recharts** — React-native charting. Easy theming with terracotta gradients. All charts animated.
+5. **Custom SVG force graph** — No Three.js overhead. Pure JavaScript force simulation + SVG rendering. 47 nodes + 300+ edges runs smooth.
+6. **API proxy** — Vite dev server proxies `/api` to `localhost:8000`. No CORS issues during development.
+7. **Indian formatting** — `formatINR()` helper for ₹ Lakh/Crore. Green for profit, red for loss. JetBrains Mono font for all numbers.

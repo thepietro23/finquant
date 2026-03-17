@@ -1585,6 +1585,13 @@ fqn1/
 │   ├── test_fl.py           # 17 tests (FL + DP + edge cases)
 │   ├── test_quantum.py      # 12 tests (QAOA + portfolio + edge cases)
 │   └── test_api.py          # 15 tests (API endpoints + validation)
+├── dashboard/               # React frontend (Phase 14)
+│   ├── src/
+│   │   ├── components/      # layout/, ui/, charts/
+│   │   ├── pages/           # 10 dashboard pages
+│   │   └── lib/             # api.ts, formatters.ts, animations.ts
+│   ├── package.json
+│   └── vite.config.ts
 ├── data/                    # Raw CSVs (gitignored)
 │   └── features/            # Feature CSVs + pickle (gitignored)
 ├── models/                  # Saved models (gitignored)
@@ -1696,6 +1703,53 @@ docker-compose down
 ```bash
 python -m pytest tests/test_api.py -v
 # → 15 passed (10 unit + 5 edge cases)
+```
+
+---
+
+## Phase 14: React Dashboard — Manual Testing
+
+### 1. Start Backend API
+```bash
+cd fqn1
+uvicorn src.api.main:app --reload --port 8000
+# → API running at http://localhost:8000
+```
+
+### 2. Start Dashboard Dev Server
+```bash
+cd fqn1/dashboard
+npm run dev
+# → Dashboard running at http://localhost:3000
+```
+
+### 3. Navigate Pages
+```
+http://localhost:3000/          → Overview (portfolio metrics, charts)
+http://localhost:3000/portfolio → Portfolio (stock list, sector weights)
+http://localhost:3000/gnn       → GNN Insights (attention heatmap, graph)
+http://localhost:3000/rl        → RL Agent (PPO vs SAC, weights)
+http://localhost:3000/stress    → Stress Testing (Monte Carlo, VaR)
+http://localhost:3000/nas       → NAS Lab (architecture search)
+http://localhost:3000/fl        → Federated Learning (convergence)
+http://localhost:3000/quantum   → Quantum Lab (QAOA circuit, Sharpe)
+http://localhost:3000/sentiment → Sentiment (FinBERT live analysis)
+http://localhost:3000/graph     → Graph Viz (stock network, RL weights)
+```
+
+### 4. Test Live API Features
+```
+- Sentiment page: Type "Company profits surged 50%" → Click Analyze → Score should be positive
+- Stress page: Set n_stocks=5, simulations=500 → Click Generate → Scenario table appears
+- Quantum page: Set n_assets=4, k_select=2 → Click Run QAOA → Circuit diagram + Sharpe comparison
+- Graph page: Click on a stock node → Details panel shows sector, RL weight, connections
+```
+
+### 5. Production Build
+```bash
+cd fqn1/dashboard
+npm run build
+# → dist/ folder generated (~830KB bundle)
 ```
 
 ---

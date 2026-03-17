@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* ============================================================
+   FINQUANT-NEXUS v4 — Light & Warm Theme (v2)
+   Primary: Claude Crail #C15F3C
+   ============================================================ */
+
+@theme {
+  --color-bg: #FFFFFF;
+  --color-bg-cream: #FFF7ED;
+  --color-bg-card: #F9FAFB;
+  --color-primary: #C15F3C;
+  --color-primary-hover: #A34E30;
+  --color-primary-light: #F8D5C8;
+  --color-primary-subtle: #FFF0E8;
+  --color-text: #111827;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-profit: #16A34A;
+  --color-profit-light: #DCFCE7;
+  --color-loss: #DC2626;
+  --color-loss-light: #FEE2E2;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+  --color-accent-indigo: #6366F1;
+  --color-accent-teal: #0D9488;
+  --color-border: #E5E7EB;
+  --color-border-light: #F3F4F6;
+  --color-secondary: #1A1A2E;
+
+  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-card); }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }

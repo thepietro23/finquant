@@ -1,8 +1,8 @@
 # FINQUANT-NEXUS v4 — Phase-wise Progress Tracker
 
 > **Last Updated:** 2026-03-17
-> **Current Phase:** Phase 13 (API + Docker) — ✅ DONE
-> **Overall:** Phase 0-13 = 232/232 tests GREEN
+> **Current Phase:** Phase 14 (Dashboard) — ✅ DONE
+> **Overall:** Phase 0-14 = 232/232 tests GREEN + Dashboard 10 pages built
 
 ---
 
@@ -23,7 +23,7 @@
 | 11 | Federated Learning | ✅ DONE | D31-D37 | FedAvg/FedProx + DP-SGD, 4 sector clients |
 | 12 | Quantum ML | ✅ DONE | D38-D42 | QAOA portfolio selection + classical benchmark |
 | 13 | API + Docker | ✅ DONE | D43-D46 | FastAPI + Docker + 15 tests |
-| 14 | Dashboard + Benchmarks | NOT STARTED | D46-D49 | React frontend with best viz libs |
+| 14 | Dashboard | ✅ DONE | D46-D49 | React + Tailwind + 10 pages + Graph Viz |
 | 15 | Thesis + Demo | NOT STARTED | D50-D56 | Final thesis document |
 
 ---
@@ -602,11 +602,56 @@ QAOA Portfolio Selection:
 
 ---
 
-## PHASES 14-15: Upcoming (Brief)
+## PHASE 14: React Dashboard — ✅ DONE
+
+### Kya Banaya (What)
+| File/Dir | Purpose | Status |
+|----------|---------|--------|
+| `dashboard/` | Full React dashboard app (Vite + TypeScript) | ✅ |
+| `src/components/layout/` | Sidebar, Header, DashboardLayout | ✅ |
+| `src/components/ui/` | Card, MetricCard, Badge, PageHeader | ✅ |
+| `src/components/charts/` | SparkLine, PerformanceChart, SectorDonut | ✅ |
+| `src/lib/` | API client, formatters (INR), animation presets | ✅ |
+| `src/pages/` (10 pages) | All dashboard views | ✅ |
+
+### 10 Dashboard Pages
+| Page | Route | Kya Dikhata Hai |
+|------|-------|-----------------|
+| Overview | `/` | Portfolio value, Sharpe, Max DD, performance chart, sector donut, top holdings |
+| Portfolio | `/portfolio` | Detailed metrics from API, sector weights, full stock list |
+| GNN Insights | `/gnn` | Stock network SVG, attention heatmap, edge type legend |
+| RL Agent | `/rl` | PPO vs SAC reward curves, portfolio weights bar chart |
+| Stress Testing | `/stress` | Monte Carlo paths, VaR/CVaR gauges, scenario table (live API) |
+| NAS Lab | `/nas` | Architecture diagram, alpha convergence, NAS vs hand-designed |
+| Federated | `/fl` | FL convergence curves, client cards, fairness comparison |
+| Quantum | `/quantum` | QAOA circuit SVG, Sharpe comparison, weight bars (live API) |
+| Sentiment | `/sentiment` | Real-time FinBERT analysis, batch headlines, sector sentiment (live API) |
+| **Graph Viz** | `/graph` | **Interactive force-directed stock network — node size=RL weight, edges=sector/supply/correlation** |
+
+### Tech Stack
+- React 18 + TypeScript + Vite
+- Tailwind CSS (v2 Light & Warm Theme — terracotta #C15F3C primary)
+- Framer Motion (spring animations, scroll reveals)
+- Recharts (area, bar, line, pie charts)
+- Lucide React (icons)
+- react-countup (animated numbers)
+- Custom SVG force-directed graph (Graph Viz page)
+- API proxy: Vite dev server → FastAPI backend (:8000)
+
+### Key Decisions
+1. **React (NOT Next.js)** — No SSR needed for a dashboard. Simpler, lighter.
+2. **v2 Light Warm Theme** — White/cream bg, terracotta primary (#C15F3C), professional + warm.
+3. **Framer Motion** — Spring physics animations. Cards fade-slide on scroll, numbers count up.
+4. **Live API integration** — Sentiment, Stress Test, QAOA, Metrics pages call real FastAPI endpoints.
+5. **Custom force graph** — No Three.js dependency. Pure SVG + force simulation for stock network.
+6. **Indian number format** — ₹ symbol, Lakh/Crore system for all monetary values.
+
+---
+
+## PHASE 15: Upcoming
 
 | Phase | Key Challenge | Reasoning |
 |-------|--------------|-----------|
-| 14: Dashboard | React frontend | Proper UI, not Streamlit. Interactive charts, real-time updates. |
 | 15: Thesis | Final document + demo | Everything compiled into thesis format. |
 
 ---
