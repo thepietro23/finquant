@@ -30,12 +30,13 @@ function genMonteCarloPaths(n = 50, days = 60) {
 
 export default function StressTesting() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [scenarios, setScenarios] = useState<ScenarioResult[]>([]);
   const [nStocks, setNStocks] = useState(10);
   const [nSim, setNSim] = useState(1000);
   const [mcPaths] = useState(() => genMonteCarloPaths());
 
-  // Build chart data from first 5 paths for display
+  // Build chart data from first 30 paths for display
   const mcChartData = mcPaths[0].map((_, i) => {
     const point: Record<string, number> = { day: i };
     mcPaths.slice(0, 30).forEach((path, p) => {
@@ -46,11 +47,15 @@ export default function StressTesting() {
 
   async function runTest() {
     setLoading(true);
+    setError(null);
     try {
-      const res = await api.stressTest(nStocks, nSim);
+      const res = await api.stressTest(
+        Math.max(2, Math.min(47, nStocks)),
+        Math.max(100, Math.min(50000, nSim)),
+      );
       setScenarios(res.scenarios);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : 'Stress test failed — is the backend running?');
     } finally {
       setLoading(false);
     }
@@ -86,6 +91,7 @@ export default function StressTesting() {
             {loading ? 'Running...' : 'Generate Stress Test'}
           </button>
         </div>
+        {error && <p className="mt-3 text-sm text-loss">{error}</p>}
       </Card>
 
       {/* Mock VaR Gauges */}
@@ -101,7 +107,7 @@ export default function StressTesting() {
         <h2 className="font-display font-bold text-lg text-secondary mb-4">
           Monte Carlo Simulation Paths
         </h2>
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={320} minHeight={1}>
           <LineChart data={mcChartData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
             <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#9CA3AF' }}

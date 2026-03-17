@@ -9,24 +9,26 @@ import type { QAOAResponse } from '../lib/api';
 import Card from '../components/ui/Card';
 import MetricCard from '../components/ui/MetricCard';
 import PageHeader from '../components/ui/PageHeader';
-// Badge available for future use
 import { staggerContainer } from '../lib/animations';
 import { motion } from 'framer-motion';
 
 export default function Quantum() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<QAOAResponse | null>(null);
   const [nAssets, setNAssets] = useState(6);
   const [kSelect, setKSelect] = useState(3);
   const [layers, setLayers] = useState(2);
 
   async function runQAOA() {
+    const k = Math.min(kSelect, nAssets);
     setLoading(true);
+    setError(null);
     try {
-      const res = await api.qaoa(nAssets, kSelect, layers, 512, 0.5);
+      const res = await api.qaoa(nAssets, k, layers, 512, 0.5);
       setResult(res);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : 'QAOA failed — is the backend running?');
     } finally {
       setLoading(false);
     }
@@ -81,6 +83,7 @@ export default function Quantum() {
             {loading ? 'Optimizing...' : 'Run QAOA'}
           </button>
         </div>
+        {error && <p className="mt-3 text-sm text-loss">{error}</p>}
       </Card>
 
       {result && (
@@ -163,7 +166,7 @@ export default function Quantum() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <h2 className="font-display font-bold text-lg text-secondary mb-4">Sharpe Comparison</h2>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={250} minHeight={1}>
                 <BarChart data={compareData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
                   <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }}
@@ -180,7 +183,7 @@ export default function Quantum() {
 
             <Card>
               <h2 className="font-display font-bold text-lg text-secondary mb-4">Portfolio Weights</h2>
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={250} minHeight={1}>
                 <BarChart data={weightData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
                   <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="asset" tick={{ fontSize: 11, fill: '#6B7280' }}

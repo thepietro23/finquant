@@ -87,7 +87,7 @@ export default function NasLab() {
         {/* Alpha Convergence */}
         <Card>
           <h2 className="font-display font-bold text-lg text-secondary mb-4">Alpha Convergence</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={1}>
             <LineChart data={alphaData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
               <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="epoch" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={{ stroke: '#E5E7EB' }} tickLine={false} />
@@ -106,7 +106,7 @@ export default function NasLab() {
         {/* Performance Comparison */}
         <Card>
           <h2 className="font-display font-bold text-lg text-secondary mb-4">NAS vs Hand-Designed</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={1}>
             <BarChart data={compareData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
               <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={{ stroke: '#E5E7EB' }} tickLine={false} />

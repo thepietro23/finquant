@@ -57,7 +57,7 @@ export default function Portfolio() {
         {/* Sector Allocation */}
         <Card>
           <h2 className="font-display font-bold text-lg text-secondary mb-4">Sector Weights</h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={1}>
             <BarChart data={allocData} layout="vertical" margin={{ top: 5, right: 10, bottom: 5, left: 80 }}>
               <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 12, fill: '#9CA3AF' }}

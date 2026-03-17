@@ -83,7 +83,7 @@ export default function RlAgent() {
         <h2 className="font-display font-bold text-lg text-secondary mb-4">
           Training Progress — PPO vs SAC
         </h2>
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={320} minHeight={1}>
           <AreaChart data={rewardData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
             <defs>
               <linearGradient id="grad-ppo" x1="0" y1="0" x2="0" y2="1">
@@ -117,7 +117,7 @@ export default function RlAgent() {
         <h2 className="font-display font-bold text-lg text-secondary mb-4">
           Portfolio Weights — {agent} Agent
         </h2>
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={320} minHeight={1}>
           <BarChart data={weights} margin={{ top: 10, right: 10, bottom: 40, left: 10 }}>
             <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6B7280' }}

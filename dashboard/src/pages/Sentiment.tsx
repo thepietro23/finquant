@@ -24,7 +24,9 @@ const SAMPLE_HEADLINES = [
 
 export default function Sentiment() {
   const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SentimentResponse | null>(null);
   const [batchResults, setBatchResults] = useState<SentimentResponse[]>([]);
   const [stocks, setStocks] = useState<StockInfo[]>([]);
@@ -35,26 +37,28 @@ export default function Sentiment() {
 
   async function analyze() {
     if (!text.trim()) return;
-    setLoading(true);
+    setAnalyzing(true);
+    setError(null);
     try {
       const res = await api.sentiment(text);
       setResult(res);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : 'Sentiment analysis failed — is the backend running?');
     } finally {
-      setLoading(false);
+      setAnalyzing(false);
     }
   }
 
   async function analyzeBatch() {
-    setLoading(true);
+    setBatchLoading(true);
+    setError(null);
     try {
       const res = await api.sentimentBatch(SAMPLE_HEADLINES);
       setBatchResults(res.results);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : 'Batch analysis failed — is the backend running?');
     } finally {
-      setLoading(false);
+      setBatchLoading(false);
     }
   }
 
@@ -86,15 +90,18 @@ export default function Sentiment() {
             type="text" value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && analyze()}
             placeholder="Enter financial news headline..."
+            maxLength={500}
             className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
           />
-          <button onClick={analyze} disabled={loading || !text.trim()}
+          <button onClick={analyze} disabled={analyzing || !text.trim()}
             className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-medium
               hover:bg-primary-hover transition-colors disabled:opacity-50">
             <Send size={16} />
-            {loading ? 'Analyzing...' : 'Analyze'}
+            {analyzing ? 'Analyzing...' : 'Analyze'}
           </button>
         </div>
+
+        {error && <p className="mt-3 text-sm text-loss">{error}</p>}
 
         {result && (
           <div className="mt-4 p-4 bg-bg-card rounded-xl">
@@ -141,9 +148,9 @@ export default function Sentiment() {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display font-bold text-lg text-secondary">Batch Headlines</h2>
-            <button onClick={analyzeBatch} disabled={loading}
+            <button onClick={analyzeBatch} disabled={batchLoading}
               className="px-3 py-1.5 text-xs font-medium text-primary bg-primary-subtle rounded-lg hover:bg-primary-light transition-colors disabled:opacity-50">
-              {loading ? 'Running...' : 'Analyze All'}
+              {batchLoading ? 'Running...' : 'Analyze All'}
             </button>
           </div>
           <div className="space-y-2 max-h-[360px] overflow-y-auto">
@@ -167,7 +174,7 @@ export default function Sentiment() {
         {/* Sector Sentiment */}
         <Card>
           <h2 className="font-display font-bold text-lg text-secondary mb-4">Sector Sentiment</h2>
-          <ResponsiveContainer width="100%" height={340}>
+          <ResponsiveContainer width="100%" height={340} minHeight={1}>
             <BarChart data={sectorSentiment} layout="vertical" margin={{ top: 5, right: 10, bottom: 5, left: 60 }}>
               <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 12, fill: '#9CA3AF' }}

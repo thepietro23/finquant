@@ -19,15 +19,18 @@ function useAnimatedNumber(end: number, decimals: number, duration = 1200) {
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number>(0);
   const startRef = useRef<number>(0);
+  const currentRef = useRef(0);
 
   useEffect(() => {
-    const startVal = display;
+    const startVal = currentRef.current;
     startRef.current = performance.now();
     function tick(now: number) {
       const elapsed = now - startRef.current;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-      setDisplay(startVal + (end - startVal) * eased);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const val = startVal + (end - startVal) * eased;
+      currentRef.current = val;
+      setDisplay(val);
       if (progress < 1) rafRef.current = requestAnimationFrame(tick);
     }
     rafRef.current = requestAnimationFrame(tick);

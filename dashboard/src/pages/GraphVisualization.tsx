@@ -126,7 +126,7 @@ export default function GraphVisualization() {
   const [showEdgeType, setShowEdgeType] = useState({ sector: true, supply: true, correlation: true });
   const svgRef = useRef<SVGSVGElement>(null);
   const animRef = useRef<number>(0);
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
 
   const W = 900, H = 600;
 
@@ -183,10 +183,13 @@ export default function GraphVisualization() {
 
     // Correlation edges (mock — random high correlation pairs)
     const tickerList = stocks.map(s => s.ticker);
+    const corrSet = new Set<string>();
     for (let i = 0; i < 40; i++) {
       const a = tickerList[Math.floor(Math.random() * tickerList.length)];
       const b = tickerList[Math.floor(Math.random() * tickerList.length)];
-      if (a !== b) {
+      const key = [a, b].sort().join('|');
+      if (a !== b && !corrSet.has(key)) {
+        corrSet.add(key);
         newEdges.push({ source: a, target: b, type: 'correlation' });
       }
     }
@@ -216,7 +219,9 @@ export default function GraphVisualization() {
   // Filter edges by type
   const visibleEdges = edges.filter(e => showEdgeType[e.type]);
 
-  const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes, tick]);
+  // nodeMap rebuilds on tick because force sim mutates node positions in-place
+  // Using a plain Map (no useMemo) since tick changes every frame during animation
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
   // Highlighted edges (connected to hovered/selected node)
   const highlightId = hovered || selected;
@@ -228,7 +233,7 @@ export default function GraphVisualization() {
       if (e.target === highlightId) connected.add(e.source);
     });
     return connected;
-  }, [highlightId, visibleEdges, tick]);
+  }, [highlightId, visibleEdges]);
 
   const selectedNode = selected ? nodeMap.get(selected) : null;
 

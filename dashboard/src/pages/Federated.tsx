@@ -75,7 +75,7 @@ export default function Federated() {
         <h2 className="font-display font-bold text-lg text-secondary mb-4">
           Convergence — Sharpe vs FL Rounds
         </h2>
-        <ResponsiveContainer width="100%" height={350}>
+        <ResponsiveContainer width="100%" height={350} minHeight={1}>
           <LineChart data={convData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
             <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="round" tick={{ fontSize: 12, fill: '#9CA3AF' }}
@@ -98,7 +98,7 @@ export default function Federated() {
         <h2 className="font-display font-bold text-lg text-secondary mb-4">
           Client Fairness — With FL vs Without FL
         </h2>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={280} minHeight={1}>
           <BarChart data={fairnessData} margin={{ top: 10, right: 10, bottom: 0, left: 10 }}>
             <CartesianGrid stroke="#F3F4F6" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="client" tick={{ fontSize: 12, fill: '#6B7280' }}
