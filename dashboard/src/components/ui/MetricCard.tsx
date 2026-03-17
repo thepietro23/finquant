@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import CountUp from 'react-countup';
+import { useEffect, useRef, useState } from 'react';
 import { fadeSlideUp } from '../../lib/animations';
 import { valueBg, formatPct } from '../../lib/formatters';
 import SparkLine from '../charts/SparkLine';
@@ -15,10 +15,37 @@ interface MetricCardProps {
   icon?: React.ReactNode;
 }
 
+function useAnimatedNumber(end: number, decimals: number, duration = 1200) {
+  const [display, setDisplay] = useState(0);
+  const rafRef = useRef<number>(0);
+  const startRef = useRef<number>(0);
+
+  useEffect(() => {
+    const startVal = display;
+    startRef.current = performance.now();
+    function tick(now: number) {
+      const elapsed = now - startRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplay(startVal + (end - startVal) * eased);
+      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [end, duration]);
+
+  return display.toLocaleString('en-IN', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
 export default function MetricCard({
   title, value, decimals = 2, prefix = '', suffix = '',
   change, sparkData, icon,
 }: MetricCardProps) {
+  const animated = useAnimatedNumber(value, decimals);
+
   return (
     <motion.div
       variants={fadeSlideUp}
@@ -35,9 +62,7 @@ export default function MetricCard({
 
       <div className="flex items-end gap-3 mb-3">
         <span className="text-3xl font-bold font-mono text-text">
-          {prefix}
-          <CountUp end={value} decimals={decimals} duration={1.2} separator="," preserveValue />
-          {suffix}
+          {prefix}{animated}{suffix}
         </span>
         {change !== undefined && (
           <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${valueBg(change)}`}>
