@@ -302,6 +302,47 @@ class FLSummaryResponse(BaseModel):
 # GNN SUMMARY (real graph data from stock correlations)
 # ============================================================
 
+# ============================================================
+# NEWS SENTIMENT (real-time Google News + FinBERT)
+# ============================================================
+
+class NewsItem(BaseModel):
+    headline: str
+    source: str = ''
+    published: str = ''
+    ticker: str = ''
+    sector: str = ''
+    score: float = 0.0
+    positive: float = 0.0
+    negative: float = 0.0
+    neutral: float = 0.0
+    label: str = 'neutral'
+
+class SectorSentiment(BaseModel):
+    sector: str
+    avg_score: float
+    n_headlines: int
+    positive_pct: float
+    negative_pct: float
+
+class SentimentPortfolioHolding(BaseModel):
+    ticker: str
+    sector: str
+    base_weight: float       # equal-weight %
+    sentiment_score: float   # avg sentiment for this stock
+    adjusted_weight: float   # sentiment-adjusted weight %
+    weight_change: float     # change from base weight
+
+class NewsSentimentResponse(BaseModel):
+    n_headlines: int
+    avg_score: float
+    market_mood: str         # 'Bullish' / 'Bearish' / 'Neutral'
+    news: list[NewsItem]
+    sector_sentiment: list[SectorSentiment]
+    portfolio_impact: list[SentimentPortfolioHolding]
+    score_distribution: dict[str, int]  # bucket -> count
+
+
 class GNNNode(BaseModel):
     ticker: str
     sector: str

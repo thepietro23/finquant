@@ -127,6 +127,28 @@ export interface FLSummaryResponse {
   fairness: FLFairnessItem[];
 }
 
+// --- News Sentiment ---
+export interface NewsItem {
+  headline: string; source: string; published: string;
+  ticker: string; sector: string;
+  score: number; positive: number; negative: number; neutral: number; label: string;
+}
+export interface SectorSentimentItem {
+  sector: string; avg_score: number; n_headlines: number;
+  positive_pct: number; negative_pct: number;
+}
+export interface SentimentPortfolioHolding {
+  ticker: string; sector: string; base_weight: number;
+  sentiment_score: number; adjusted_weight: number; weight_change: number;
+}
+export interface NewsSentimentResponse {
+  n_headlines: number; avg_score: number; market_mood: string;
+  news: NewsItem[];
+  sector_sentiment: SectorSentimentItem[];
+  portfolio_impact: SentimentPortfolioHolding[];
+  score_distribution: Record<string, number>;
+}
+
 // --- GNN Summary ---
 export interface GNNNode {
   ticker: string; sector: string; degree: number;
@@ -204,4 +226,7 @@ export const api = {
 
   gnnSummary: () =>
     fetchJSON<GNNSummaryResponse>('/gnn-summary'),
+
+  newsSentiment: () =>
+    fetchJSON<NewsSentimentResponse>('/news-sentiment'),
 };

@@ -29,6 +29,7 @@ from src.api.schemas import (
     NASLabResponse, AlphaPoint, NASCompareItem,
     FLSummaryResponse, FLRoundPoint, FLClientInfo, FLFairnessItem,
     GNNSummaryResponse, GNNNode, GNNEdge, TopConnection, SectorConnectivity,
+    NewsSentimentResponse, NewsItem, SectorSentiment, SentimentPortfolioHolding,
 )
 
 logger = get_logger('api')
@@ -1045,4 +1046,213 @@ def gnn_summary():
 
     except Exception as e:
         logger.error(f'GNN summary error: {traceback.format_exc()}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# NEWS SENTIMENT (real-time Google News + FinBERT)
+# ============================================================
+
+@app.get("/api/news-sentiment", response_model=NewsSentimentResponse)
+def news_sentiment():
+    """Fetch real financial news and analyze sentiment with FinBERT.
+
+    Fetches from Google News RSS for key NIFTY 50 stocks,
+    runs FinBERT on each headline, computes sector averages,
+    and suggests sentiment-adjusted portfolio weights.
+    """
+    import os
+    import pandas as pd
+    from collections import defaultdict
+    from src.sentiment.news_fetcher import fetch_google_news, get_company_name
+    from src.sentiment.finbert import predict_batch
+    from src.data.stocks import get_all_tickers, get_sector, NIFTY50
+
+    try:
+        tickers = get_all_tickers()
+        n_stocks = len(tickers)
+        eq_w = 100.0 / n_stocks
+
+        # Fetch news for key stocks (representative per sector + market-wide)
+        # Use top market-cap stocks per sector for speed
+        key_tickers = [
+            'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
+            'SBIN.NS', 'BHARTIARTL.NS', 'ITC.NS', 'HINDUNILVR.NS', 'TATAMOTORS.NS',
+            'SUNPHARMA.NS', 'LT.NS', 'BAJFINANCE.NS', 'TATASTEEL.NS', 'MARUTI.NS',
+            'NTPC.NS', 'TITAN.NS', 'ADANIENT.NS', 'WIPRO.NS', 'KOTAKBANK.NS',
+        ]
+        # Also fetch broad market news
+        market_queries = [
+            ('NIFTY 50 Indian stock market', '', 'Market'),
+            ('Indian stock market today', '', 'Market'),
+        ]
+
+        all_headlines = []
+
+        # Fetch per-stock news
+        for ticker in key_tickers:
+            company = get_company_name(ticker)
+            query = f'{company} stock NSE'
+            headlines = fetch_google_news(query, max_results=5)
+            sector = get_sector(ticker) or 'Unknown'
+            short = ticker.replace('.NS', '')
+            for h in headlines:
+                pub = ''
+                if h.get('published'):
+                    pub = h['published'].strftime('%b %d, %H:%M') if hasattr(h['published'], 'strftime') else str(h['published'])
+                all_headlines.append({
+                    'headline': h['title'],
+                    'ticker': short,
+                    'sector': sector,
+                    'published': pub,
+                    'source': h.get('link', '').split('//')[-1].split('/')[0] if h.get('link') else '',
+                })
+
+        # Fetch market-wide news
+        for query, _, sector_label in market_queries:
+            headlines = fetch_google_news(query, max_results=5)
+            for h in headlines:
+                pub = ''
+                if h.get('published'):
+                    pub = h['published'].strftime('%b %d, %H:%M') if hasattr(h['published'], 'strftime') else str(h['published'])
+                all_headlines.append({
+                    'headline': h['title'],
+                    'ticker': 'MARKET',
+                    'sector': sector_label,
+                    'published': pub,
+                    'source': h.get('link', '').split('//')[-1].split('/')[0] if h.get('link') else '',
+                })
+
+        if not all_headlines:
+            # Return empty but valid response if news fetch fails
+            return NewsSentimentResponse(
+                n_headlines=0, avg_score=0.0, market_mood='Neutral',
+                news=[], sector_sentiment=[], portfolio_impact=[],
+                score_distribution={'very_negative': 0, 'negative': 0, 'neutral': 0, 'positive': 0, 'very_positive': 0},
+            )
+
+        # Deduplicate headlines by title
+        seen = set()
+        unique = []
+        for h in all_headlines:
+            title = h['headline'].strip()
+            if title and title not in seen:
+                seen.add(title)
+                unique.append(h)
+        all_headlines = unique
+
+        # Run FinBERT on all headlines at once (batch)
+        texts = [h['headline'] for h in all_headlines]
+        sentiments = predict_batch(texts, batch_size=16)
+
+        # Build news items with sentiment
+        news_items = []
+        for h, s in zip(all_headlines, sentiments):
+            score = s['score']
+            label = 'positive' if score > 0.1 else ('negative' if score < -0.1 else 'neutral')
+            news_items.append(NewsItem(
+                headline=h['headline'],
+                source=h.get('source', ''),
+                published=h.get('published', ''),
+                ticker=h['ticker'],
+                sector=h['sector'],
+                score=round(score, 4),
+                positive=round(s['positive'], 4),
+                negative=round(s['negative'], 4),
+                neutral=round(s['neutral'], 4),
+                label=label,
+            ))
+
+        # Sort by absolute score (most opinionated first)
+        news_items.sort(key=lambda n: abs(n.score), reverse=True)
+
+        # Overall stats
+        scores = [n.score for n in news_items]
+        avg_score = float(np.mean(scores))
+        market_mood = 'Bullish' if avg_score > 0.08 else ('Bearish' if avg_score < -0.08 else 'Neutral')
+
+        # Score distribution buckets
+        dist = {'very_negative': 0, 'negative': 0, 'neutral': 0, 'positive': 0, 'very_positive': 0}
+        for s in scores:
+            if s < -0.3: dist['very_negative'] += 1
+            elif s < -0.1: dist['negative'] += 1
+            elif s <= 0.1: dist['neutral'] += 1
+            elif s <= 0.3: dist['positive'] += 1
+            else: dist['very_positive'] += 1
+
+        # Sector sentiment aggregation
+        sector_scores: dict[str, list[float]] = defaultdict(list)
+        for n in news_items:
+            if n.sector != 'Market':
+                sector_scores[n.sector].append(n.score)
+
+        sector_sentiments = []
+        for sector, ss in sorted(sector_scores.items(), key=lambda x: abs(np.mean(x[1])), reverse=True):
+            pos = sum(1 for s in ss if s > 0.1)
+            neg = sum(1 for s in ss if s < -0.1)
+            total = len(ss)
+            sector_sentiments.append(SectorSentiment(
+                sector=sector,
+                avg_score=round(float(np.mean(ss)), 4),
+                n_headlines=total,
+                positive_pct=round(pos / total * 100, 1) if total > 0 else 0,
+                negative_pct=round(neg / total * 100, 1) if total > 0 else 0,
+            ))
+
+        # Sentiment-adjusted portfolio weights
+        # Logic: positive sentiment → higher weight, negative → lower weight
+        # Use softmax-like adjustment on equal weights
+        ticker_scores: dict[str, list[float]] = defaultdict(list)
+        for n in news_items:
+            if n.ticker != 'MARKET':
+                ticker_scores[f'{n.ticker}.NS'].append(n.score)
+
+        # For tickers without news, use sector average
+        sector_avg: dict[str, float] = {}
+        for ss in sector_sentiments:
+            sector_avg[ss.sector] = ss.avg_score
+
+        portfolio_impact = []
+        adjustments = []
+        for t in tickers:
+            short = t.replace('.NS', '')
+            sector = get_sector(t) or 'Unknown'
+            if t in ticker_scores:
+                sent = float(np.mean(ticker_scores[t]))
+            else:
+                sent = sector_avg.get(sector, avg_score)
+
+            # Adjustment: multiply weight by (1 + sentiment * sensitivity)
+            sensitivity = 2.0  # how much sentiment affects weights
+            adjustment = 1 + sent * sensitivity
+            adjustments.append((t, short, sector, sent, adjustment))
+
+        # Normalize adjusted weights
+        total_adj = sum(a[4] for a in adjustments)
+        for t, short, sector, sent, adj in adjustments:
+            adj_w = (adj / total_adj) * 100
+            portfolio_impact.append(SentimentPortfolioHolding(
+                ticker=short,
+                sector=sector,
+                base_weight=round(eq_w, 2),
+                sentiment_score=round(sent, 4),
+                adjusted_weight=round(adj_w, 2),
+                weight_change=round(adj_w - eq_w, 2),
+            ))
+
+        # Sort by weight change (biggest movers first)
+        portfolio_impact.sort(key=lambda p: abs(p.weight_change), reverse=True)
+
+        return NewsSentimentResponse(
+            n_headlines=len(news_items),
+            avg_score=round(avg_score, 4),
+            market_mood=market_mood,
+            news=news_items[:50],  # limit to 50 for payload size
+            sector_sentiment=sector_sentiments,
+            portfolio_impact=portfolio_impact,
+            score_distribution=dist,
+        )
+
+    except Exception as e:
+        logger.error(f'News sentiment error: {traceback.format_exc()}')
         raise HTTPException(status_code=500, detail=str(e))
