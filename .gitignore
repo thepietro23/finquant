@@ -46,3 +46,6 @@ pgdata/
 
 # Pytest cache
 .pytest_cache/
+
+# Logs
+logs/
